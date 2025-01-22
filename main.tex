@@ -1,0 +1,50 @@
+\documentclass{memoir}
+\input{Configs/configs}
+
+\title{Distributed Systems}
+\author{Christian J. Rudder}
+\date{January 2025}
+
+\chapterstyle{dash} % Chatper style
+\setlength{\beforechapskip}{-1em} % Adjusts space before the chapter heading
+
+
+\begin{document}
+
+\maketitle
+\setcounter{tocdepth}{2}
+
+\tableofcontents
+
+% Intentionally left blank
+\newpage
+\thispagestyle{empty}
+\mbox{}
+\vfill
+\begin{center}
+    \textit{This page is left intentionally blank.}
+\end{center}
+\vfill
+\newpage
+\thispagestyle{empty}
+\mbox{}
+\vfill
+\begin{center}
+    \Large{Big thanks to \textbf{Professor Ioannis Liagouris}}\\
+    \normalsize 
+    for teaching CS351: Distributed Systems\\
+    at Boston University \cite{liagouris_cs351}.\\
+\end{center}
+
+\vfill
+
+\chapter{Introduction}
+\input{Sections/Intro.tex}
+
+
+\bibliographystyle{plain} % We choose the "plain" reference style
+\bibliography{refs} % Entries are in the refs.bib file
+
+
+
+\end{document}
