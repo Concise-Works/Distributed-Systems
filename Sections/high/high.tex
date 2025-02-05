@@ -213,5 +213,12 @@ of distributed systems.\\
 
 In the case of Alice and Bob, an easy approach would be to date their letters, and have an expected time of 
 delivery to ensure the letter is not lost. However, in the case of computers, concepts such as 
-time becomes more complex. This text focuses on overcoming those challenges.
-
+time becomes more complex. The complication with time introduces these problems:
+\begin{itemize}
+    \item \textbf{Synchronization:} Ensuring that events are ordered correctly.
+    \item \textbf{Asynchrony:} Handling the fact that messages may be delayed or lost.
+    \item \textbf{Deadlocks:} Ensuring that the system does not halt due to circular dependencies.
+    \item \textbf{Data Races:} Ensuring that data is not corrupted by simultaneous access.
+\end{itemize}
+To name a few. We'll formally discuss these in the upcoming sections, and solutions put into place to
+mitigate these problems.
