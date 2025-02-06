@@ -1,8 +1,9 @@
 \newpage 
 \section{Remote Procedure Call (RPC)}
+This section will cover the concept of Remote Procedure Calls (RPCs) and how they are used in distributed systems and use the Go programming language to demonstrate such.
+\subsection{Establishing a Client-Server Connection}
 
-This section will cover the concept of Remote Procedure Calls (RPCs) and how they are used in distributed systems. We will discuss the basic idea of RPCs, how they work, and the challenges they face.
-We'll be using the GO RPC library to demonstrate their use with examples.
+
 
 
 \begin{Def}[client-server model]
@@ -21,8 +22,6 @@ We'll be using the GO RPC library to demonstrate their use with examples.
     RPC's abstract the network communication between the client and server enabling developers to write programs that may run on different machines, but appear to run locally.
 \end{Def}
 
-\noindent
-Now to define the components of an RPC call:
 \begin{Def}[RPC Call Stack]
 
     The RPC call stack facilitates communication between two systems via four layers:
@@ -57,7 +56,7 @@ In terms of time it might look like:
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.6\textwidth]{Sections/rpc/call_time.png}
+    \includegraphics[width=0.63\textwidth]{Sections/rpc/call_time.png}
     \caption{RPC call stack over time.}
     \label{fig:rpc_time}
 \end{figure}
@@ -168,7 +167,7 @@ Given this implementation, we approach somewhere in the realm of an \textbf{Exac
 Below we illustrate a simple TCP connection:
 \begin{figure}[h]
     \centering
-    \includegraphics[width=.9\textwidth]{Sections/rpc/sync.png}
+    \includegraphics[width=1\textwidth]{Sections/rpc/sync.png}
     \caption{TCP Handshake, data transfer, and session termination.}
     \label{fig:tcp}
 \end{figure}
@@ -180,3 +179,298 @@ arbitrary sequence numbers for security purposes. With each packet received the 
 \begin{Tip} If there still resides curiosity for the networking aspect of RPCs, consider reading our other notes:
     \href{https://github.com/Concise-Works/Cyber-Security/blob/main/main.pdf}{https://github.com/Concise-Works/Cyber-Security/blob/main/main.pdf}
 \end{Tip}
+
+\subsection{Asynchronous Function Calls}
+Let's begin to discuss how functions can run simultaneously using Go's \textbf{goroutines}:
+\begin{Def}[Asynchronous Function Calls]
+
+    An \textbf{asynchronous function call} is a function that executes independently of the main program flow, enabling tasks to run concurrently or in parallel.
+
+\end{Def}
+\newpage
+
+\noindent
+\begin{Def}[Asynchronous Function Calls in Go: Goroutines]
+
+    A \textbf{goroutine} is a \textbf{lightweight} (lower memory overhead and scheduling cost compared to traditional OS threads)
+    concurrent execution thread in Go. Goroutines enable functions to run asynchronously. Unlike traditional operating system threads, goroutines are managed by Go's runtime.
+    
+    A goroutine is created using the \texttt{go} keyword before a function call, signaling to the Go runtime to run the function asynchronously from the main program flow.
+    
+\end{Def}
+
+\vspace{-.5em}
+\begin{Example}[Count to n using Goroutines]
+
+    \label{ex:goroutine}
+    Consider the following Go program that counts to $n$ using a goroutine:
+    \begin{lstlisting}[language=Go, caption=Goroutine Example: Count to n, label={lst:goroutine}, numbers=none]
+    package main // Required for Go programs to run as executables
+    import (
+        "fmt"
+        "time"
+    ) // Import required packages : fmt for printing and time for sleep
+    
+    // ''i:=1'' is short for ''var i int = 0''
+    func countUp(n int) {
+        for i := 1; i <= n; i++ {
+            // Anonymous function declared as a goroutine
+            go func() {
+                fmt.Println("Goroutine:", i)
+            }()
+        }
+    }
+    // Main entry point of the program
+    func main() {
+        countUp(5)
+    }
+    \end{lstlisting}
+    \noindent
+    However, this won't print anything as the main function exits before the independent goroutine can finish. A simple fix we'll do for now is put a sleep to wait for the goroutine to finish.
+    \begin{lstlisting}[language=Go, caption=Adding a Sleep to Wait for Goroutine, label={lst:sleep}, numbers=none]
+        func main() {
+            countUp(5) // contains a goroutine
+            time.Sleep(2 * time.Second) // Wait for goroutine to finish
+            fmt.Println("Main function exits")
+        }
+    \end{lstlisting}
+
+    Ensuring the main function waits for the goroutine to finish.
+\end{Example}
+
+\newpage 
+
+\noindent
+Though since calls happen independent of each other means they happen simultaneously.
+\begin{Example}[Count to n using Goroutines Corollary]
+
+    \label{ex:goroutine_corollary}
+    Continuing off from the previous example (\ref{ex:goroutine}), we'll get an output such as:
+    \begin{lstlisting}[language=Go, caption=Output of Goroutine Example, label={lst:output}, numbers=none]
+    ...
+    func countUp(n int) {
+        for i := 1; i <= n; i++ {
+            go func() {
+                fmt.Println("Goroutine:", i)
+            }()
+        }
+    }
+
+    func main() {
+        countUp(5) // Runs countUp concurrently
+        time.Sleep(2 * time.Second) // Wait for goroutine to finish
+        fmt.Println("Main function exits")
+    }
+
+    /* Output:
+    Goroutine: 4
+    Goroutine: 3
+    Goroutine: 5
+    Goroutine: 2
+    Goroutine: 1
+    Main function exits
+    */
+    \end{lstlisting}
+    \noindent
+    The goroutine spawns multiple threads for each print of counter $i$. Therefore the order at which they execute is 
+    up to the Go runtime scheduler.
+\end{Example}
+
+\begin{theo}[Goroutines and Multithreading]
+
+    Goroutines will attempt to run on multiple threads to achieve parallelism. However, if there isn't enough cores available, 
+    threads will run concurrently on the same core.
+
+    To declare how many cores can use, \snippet{runtime.GOMAXPROCS} from the \snippet{runtime} package can be used.
+    \begin{lstlisting}[language=Go, caption=Setting the Number of Cores for Goroutines, label={lst:cores}]
+        import "runtime"
+        runtime.GOMAXPROCS(n) // n = number of cores to use
+    \end{lstlisting}
+    \noindent
+    By default, Go will use the number of cores available on the machine.
+\end{theo}
+
+\newpage 
+
+Try these examples out in Go to get a feel for how goroutines work.
+
+\begin{Def}[Installing and Running Go Programs]
+
+    First, install Go from the official website: \href{https://go.dev/doc/install}{https://go.dev/doc/install}.
+    The Go file extension is \snippet{.go}:
+    \begin{itemize}
+        \item \textbf{To run a Go program:} Use the command \snippet{go run <filename>.go}.
+        \item \textbf{To build a Go program:} Use the command \snippet{go build <filename>.go} to create an executable.
+        Then run the program in a terminal via \snippet{./<filename>}.
+    \end{itemize}
+\end{Def}
+
+\begin{Tip}
+    This text will teach the necessary components as we go along. However, if one wishes to learn on their own 
+    a little first, consider the following resource: \href{https://gobyexample.com/}{https://gobyexample.com/}.
+    Though this text does assume prior programming knowledge and should be follow-able without the resource.
+\end{Tip}
+\noindent
+Asynchronous functions introduces a problem: If two threads access the same memory location at the same time,
+we face corruption of data as they try to write over each other:
+\begin{Def}[Data Race]
+
+    A \textbf{data race} occurs when multiple threads or goroutines access the same memory location concurrently, and at least one of the accesses is a write operation, without proper synchronization. This leads to undefined behavior, including inconsistent data and unpredictable program execution.
+    \end{Def}
+        
+\noindent
+To avoid data races we implement the following strategy:
+\begin{Def}[Mutex (Mutual Exclusion)]
+
+    A \textbf{mutex} (short for \emph{mutual exclusion}) is a synchronization primitive that prevents multiple threads from simultaneously accessing shared resources. This allows a single thread to place a \textbf{lock} on the resource, ensuring exclusive access until the lock is released.
+\end{Def}
+
+\noindent
+We can characterize when to use a mutex in two scenarios:
+\begin{itemize}
+    \item \textbf{Writing to a shared resource:} Say a file or a database.
+    \item \textbf{When logical order is important:} Ensuring a function runs before another.
+\end{itemize}
+
+\newpage
+    
+\noindent
+Go has their own mutex implementation:
+\begin{Def}[Go Mutex]
+    
+    In Go, the \snippet{sync.Mutex} type provides a way to control access to shared data. A \texttt{Mutex} has two main methods:
+    \begin{itemize}
+        \item \snippet{Lock()}: declares that the current goroutine from which it resides has exclusive access to the resource.
+        \item \snippet{Unlock()}: Releases the mutex, allowing other goroutines to access the resource.
+    \end{itemize}
+\end{Def}
+    
+\vspace{-.5em}
+\begin{Example}[Increasing a Counter Variable with Goroutines]
+
+    \label{ex:counter}
+    Consider the following example where a function \snippet{incConuter()} increments a shared counter variable:
+    \begin{lstlisting}[language=Go, caption=Incrementing a Counter Variable, label={lst:counter}, numbers=none]
+    ...
+    var counter int // declaring global counter variable
+    
+    func incCounter() {
+        counter = counter + 1
+    }
+
+    func main() {
+        // forloop spawning an instance of incCounter() in a goroutine
+        for i := 0; i < 1000; i++ {
+            go func() {
+                incCounter()
+            }()
+        }
+        time.Sleep(5 * time.Second)
+        fmt.Println("Counter:", counter)
+    }
+    /* Output: Counter: 982 */
+    \end{lstlisting}
+    \noindent
+    By the end of the forloop, the counter will most often not be 1000. This is due to counter having 
+    a different state in each goroutine. To fix this, we'll use a mutex. So it is very possible that the first 2 goroutines 
+    look like this:
+    \begin{itemize}
+        \item Goroutine 1: \snippet{counter = 0 + 1}
+        \item Goroutine 2: \snippet{counter = 0 + 1}
+    \end{itemize}
+    \noindent
+    Where all three goroutines see the counter as 0, increment it all setting it to 1.
+\end{Example}
+
+\newpage 
+
+\noindent
+Now to fix the previous example (\ref{ex:counter}) using a mutex:
+
+\begin{Def}[Increasing a Counter Variable with a Mutex]
+
+    To ensure a global variable counter is incremented correctly, we'll use a mutex:
+    \begin{lstlisting}[language=Go, caption=Using a Mutex to Increment a Counter Variable, label={lst:mutex}, numbers=none]
+    ... // imported the "sync" package for the mutex
+    var counter int
+    var mu sync.Mutex // declaring a mutex
+
+    func incCounter() {
+        mu.Lock() // Lock the mutex
+        counter = counter + 1
+        mu.Unlock() // Unlock the mutex
+    }
+
+    func main() {
+        for i := 0; i < 1000; i++ {
+            go func() {
+                incCounter()
+            }()
+        }
+        time.Sleep(5 * time.Second)
+        fmt.Println("Counter:", counter)
+    }
+
+    /* Output:
+    Counter: 1000
+    */
+    \end{lstlisting}
+
+    \noindent
+    By using a mutex, we ensure that only one goroutine can access the shared counter variable at a time.
+\end{Def}
+
+\noindent
+Though with mutexes may come another problem, what if a goroutine never releases the lock?
+\begin{Def}[Deadlock]
+
+    A \textbf{deadlock} occurs when two or more asynchronous processes are waiting for each other to release a resource, preventing all processes from progressing. This results in a program that hangs indefinitely.
+\end{Def}
+\noindent
+In a large project a logical mistake in a sea of processes can lead to a deadlock. 
+
+\newpage
+
+\noindent
+The next example though contrived, illustrates a deadlock scenario:
+\begin{Example}[Deadlock Scenario]
+    
+    Say we have functions \snippet{task1()} and \snippet{task2()} that each require a mutex lock:
+    \begin{lstlisting}[language=Go, caption=Deadlock Scenario, label={lst:deadlock}, numbers=none]
+    ... // dots represent some passage of code
+
+    go func task1() {
+        lockA.lock() ... lockB.lock()
+        ...
+        lockB.unlock() ... lockA.unlock()
+    }
+
+    go func task2() {
+        lockB.lock() ... lockA.lock()
+        ...
+        lockA.unlock() ... lockB.unlock()
+    }
+    
+    ...
+    \end{lstlisting}
+    Depending on how the scheduler runs, these two tasks will lock each other out, halting the program indefinitely.
+\end{Example}
+
+\noindent
+In Go, problems may arise from how Go deals with scoped variables:
+\begin{Def}[Reference vs. Value Types]
+
+    In Go, variables can be either \textbf{reference types} or \textbf{value types}:
+    \begin{itemize}
+        \item \textbf{Reference Types:} Point to a memory location where the actual data is stored. Changes to the reference type will affect all variables pointing to the same memory location.
+        \item \textbf{Value Types:} Store the actual data in memory. Changes to a value type will not affect other variables.
+    \end{itemize}
+\end{Def}
+
+\begin{Def}[Closures and Reference Types]
+
+    In Go, if a variable isn't explicitly pass to a function, but is rather accessible from the function's scope, it is considered a \textbf{closure}. This 
+    closure is a reference to the variable, not the data itself.
+\end{Def}
+
+    

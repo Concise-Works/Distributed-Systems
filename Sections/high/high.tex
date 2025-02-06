@@ -100,8 +100,8 @@ Now at a high-lever, we discuss how the a system interacts with all its componen
 \begin{itemize}
     \item \textbf{Text Segment:} Contains the executable code.
     \item \textbf{Data Segment:} Stores global and static variables.
-    \item \textbf{Stack:} Manages function calls and local variables in a first in, last out mannar.
-    \item \textbf{Heap:} Gathers and manages dynamically references to data from the stack memory. 
+    \item \textbf{System Stack:} A memory region that manages temporary data related to function calls in a first-in-last-out manner.
+    \item \textbf{System Heap:} A memory region that dynamically allocates references to data from the stack memory. 
 \end{itemize}
 \end{Def}
 
@@ -155,26 +155,39 @@ The CPU performs instructions via the following steps:
     \begin{itemize}
         \item A \textbf{Task} is a single unit of work in various states (waiting, running, completed).
         \item A \textbf{Job} is a high-level operation comprising multiple tasks.
-        \item A \textbf{Process} is an executing instance of a program that manages system resources and can contain multiple tasks.
+        \item A \textbf{Process} is an executing instance of a program that manages system resources instructing the CPU to execute tasks.
     \end{itemize}
 \end{Def}
 
 \newpage
 \begin{Def}[Threads: Concurrency \& Parallelism]
 
-    A \textbf{thread} contains a segment of instructions to execute on a CPU core. Within a single core, multiple threads 
-    from different processes are scheduled to execute one after the other called \textbf{concurrency}. Giving the illusion of 
-    simultaneity.
+    A \textbf{thread} is a unit of logic (a segment of code) to be executed by a CPU core. \textbf{A core can only run one thread at a time}.
+    The core itself is called the \textbf{hardware-thread}, while our units of logic are called \textbf{software-threads}.
 
-    With multiple cores come \textbf{multi-threading}, where multiple threads run on different cores simultaneously.
+    The OS system scheduler manages the hardware-threads, and assigns software-threads to them. Switching between software-threads on a hardware-thread is called \textbf{context switching}.
+    Context switching is expensive, as it requires saving the current state of the software-thread and loading the state of the new software-thread. Though it provides the illusion of tasks running simultaneously, 
+    called \textbf{concurrency}.
+    
+    With multiple cores come \textbf{multi-threading}, where multiple threads run on other cores simultaneously.
     This true simultaneity is called \textbf{parallelism}.
 \end{Def}
     
+\vspace{-.5em}
 \begin{Def}[Kernel]
     
-    The kernel is the central component of the operating system. It manages hardware resources—including the CPU, memory, and I/O devices—and provides core services such as process management, memory management, and device control. Importantly, there is only one kernel per operating system instance; it governs all CPU cores rather than existing separately for each core.
+    The kernel is the central component of the operating system. It manages hardware resources—including the CPU, memory, and I/O devices—and provides core services such as process management, memory management, and device control.
 \end{Def}
-    
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=.8\textwidth]{./Sections/high/user_kernel.png}
+    \caption{Process threads scheduled by the OS kernel and processed by the CPU.}
+\end{figure}
+
+\newpage 
+
+\noindent
 \subsection{Motivation for Distributed Systems}
 
 \noindent
@@ -209,16 +222,4 @@ would have to send a message back to Alice, acknowledging the receipt of $m_1$.
 \noindent
 Though problems can arise, what if Alice's letter gets lost in the mail, what if Bob receives multiple 
 letters from Alice, how does Bob know which letter is the most recent? These are the fundamental problems 
-of distributed systems.\\
-
-In the case of Alice and Bob, an easy approach would be to date their letters, and have an expected time of 
-delivery to ensure the letter is not lost. However, in the case of computers, concepts such as 
-time becomes more complex. The complication with time introduces these problems:
-\begin{itemize}
-    \item \textbf{Synchronization:} Ensuring that events are ordered correctly.
-    \item \textbf{Asynchrony:} Handling the fact that messages may be delayed or lost.
-    \item \textbf{Deadlocks:} Ensuring that the system does not halt due to circular dependencies.
-    \item \textbf{Data Races:} Ensuring that data is not corrupted by simultaneous access.
-\end{itemize}
-To name a few. We'll formally discuss these in the upcoming sections, and solutions put into place to
-mitigate these problems.
+of distributed systems.
