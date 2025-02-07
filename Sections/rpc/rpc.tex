@@ -685,7 +685,7 @@ Now, say there are tasks $A$ and $B$, for which $B$ depends on the completion of
 \begin{Def}[Channels]
 
     A \textbf{channel} is a typed conduit through which goroutines communicate. Channels allow goroutines to send and receive data.
-    Channels are created using the \snippet{make()} function with the \snippet{chan} keyword.
+    Channels are created using the \snippet{make()} function with the \snippet{chan} keyword. Channels must be closed after use to prevent memory leaks with \snippet{close()}.
 \end{Def}
 
 \begin{figure}[h]
@@ -697,48 +697,51 @@ Now, say there are tasks $A$ and $B$, for which $B$ depends on the completion of
 \noindent
 Note, despite the diagrams order of goroutines, the order in which they run is up to the Go runtime scheduler.
 
-\begin{Example}[Synchronizing Incoming Data Processing]
+\begin{Example}[Synchronizing Incoming Data Processing with Channels]
 
-Consider the following example where we use a channel to synchronize the processing of incoming data:
+    \label{ex:channels}
+Consider the following example of downloading and processing data concurrently:
 \begin{lstlisting}[language=Go, caption=Using Channels to Synchronize Downloading and Processing, label={lst:channels}, numbers=none]
     package main
-
     import (
         "fmt"
         "sync"
         "time"
     )
 
-    // Download function simulates downloading data
-    func download(wg *sync.WaitGroup, i int) {
-        defer wg.Done()
+    // Download function simulates downloading data and sends a signal when done
+    func download(i int, ch chan int) {
         fmt.Printf("Downloading: Resource_%d...\n", i)
         time.Sleep(5 * time.Second) // Simulating download time
         fmt.Printf("Download complete: Resource_%d\n", i)
+        ch <- i // Send signal that download is complete
     }
 
-    // Process function simulates processing data
-    func process(wg *sync.WaitGroup, i int) {
+    // Process function waits for a signal before processing
+    func process(ch chan int, wg *sync.WaitGroup) {
         defer wg.Done()
+        i := <-ch // Wait for download to complete
         fmt.Printf("Processing: Resource_%d...\n", i)
         time.Sleep(1 * time.Second) // Simulating processing time
         fmt.Printf("Processing complete: Resource_%d\n", i)
     }
 
     func main() {
+        n := 5
+        ch := make(chan int) // Unbuffered channel
         var wg sync.WaitGroup
-
-        // Simulating downloading and processing 5 resources concurrently
-        for i := 0; i < 5; i++ {
-            wg.Add(1)
-            go download(&wg, i)
-            wg.Add(1)
-            go process(&wg, i)
+        wg.Add(n)
+        // Spawn n goroutines to download and process resources concurrently
+        for i := 0; i < n; i++ {
+            go download(i, ch)
+            go process(ch, &wg)
         }
 
         wg.Wait()
+        close(ch) // Close channel after all downloads are completed
         fmt.Println("Main function exits")
     }
+
     \end{lstlisting}
 \end{Example}
 
@@ -753,6 +756,7 @@ Consider the following example where we use a channel to synchronize the process
     \end{itemize}
 \end{theo}
 
+\noindent
 Unbuffered channels undergo a \textbf{handshake} process:
 \begin{figure}[h]
     \centering
@@ -765,8 +769,14 @@ Unbuffered channels undergo a \textbf{handshake} process:
 Say Alice (left) want to send a message to Bob (right) over a channel. (1) The channel is blocked until Bob is ready to receive. (2) The channel is no longer blocked 
 read for the exchange. (3) Alice preforms a \textbf{send} and is locked into the operation until Bob \textbf{receives} the message. (4-5) Bob enters the channel and receives the message;
 Both Alice and Bob are locked into the operation until the message exchange is complete.
-(6) they both are free to continue their operations.
+(6) they both are free to continue their operations.\\
 
+\begin{theo}[Unbeffered Blocking]
+\noindent
+Let $A$ and $B$ be two goroutines attempting to send messages over an unbuffered channel. 
+If $A$ enters the channel first, $B$ will be blocked until $A$ finishes the transaction.
+\end{theo}
+The previous example (\ref{ex:channels}) uses an unbuffered channel.
 \newpage 
 
 \noindent
@@ -780,4 +790,21 @@ In contrast buffered channels allow for a more asynchronous approach:
 \end{figure}
 
 \noindent
-(1) Here Alice (left) fills the channel from left to right with messages. (2) The channel is full and Alice is free to continue her operations. (3) Bob (right) takes the rightmost message from the channel. (4) Bob is free to continue his operations, leaving the channel.
+(1) Here Alice (left) fills the channel from left to right with messages. (2) The channel is full and Alice is free to continue her operations. (3) Bob (right) takes the rightmost message from the channel. (4) Bob is free to continue his operations, leaving the channel.\\
+
+\noindent
+To make the last example (\ref{ex:channels}) use a buffered channel, we can modify the channel creation.
+
+\begin{Example}[Using Buffered Channels]
+
+    \label{ex:buffered}
+    Consider the previous example (\ref{ex:channels}) with a buffered channel:
+    \begin{lstlisting}[language=Go, caption=Using Buffered Channels to Synchronize Downloading and Processing, label={lst:buffered}, numbers=none]
+    ...
+    ch := make(chan int, n) // Buffered channel with a capacity of 5
+    ...
+    \end{lstlisting}
+    \noindent
+    Here, the channel has a buffer size of n, allowing up to n messages to be stored before the receiver is ready.
+\end{Example}
+

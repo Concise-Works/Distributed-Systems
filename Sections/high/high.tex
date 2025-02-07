@@ -172,8 +172,26 @@ The CPU performs instructions via the following steps:
     With multiple cores come \textbf{multi-threading}, where multiple threads run on other cores simultaneously.
     This true simultaneity is called \textbf{parallelism}.
 \end{Def}
-    
-\vspace{-.5em}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=.75\textwidth]{./Sections/high/concurrency.png}
+    \caption{Concurrency: Multiple software-threads running on a single hardware-thread.}
+\end{figure}
+
+\noindent
+In reality, many tasks preform I/O operations, which don't 
+concern the CPU:
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=.75\textwidth]{./Sections/high/concurrency_io.png}
+    \caption{Concurrency with I/O: Multiple software-threads running on a single hardware-thread.}
+\end{figure}
+
+\noindent
+Now since the CPU isn't idle on I/O operations, the overall time between tasks is cut significantly.
+
+\newpage
+
 \begin{Def}[Kernel]
     
     The kernel is the central component of the operating system. It manages hardware resources—including the CPU, memory, and I/O devices—and provides core services such as process management, memory management, and device control.
@@ -185,6 +203,7 @@ The CPU performs instructions via the following steps:
     \caption{Process threads scheduled by the OS kernel and processed by the CPU.}
     \label{fig:kernel}
 \end{figure}
+
 
 \newpage 
 
