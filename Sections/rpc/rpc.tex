@@ -52,7 +52,7 @@ To illustrate the RPC call stack, observe the following diagram:
 \end{figure}
 
 \noindent
-In terms of time it might look like:
+$B$ runs through the stub and RPC library again to reply to $A$. In terms of time it might look like:
 
 \begin{figure}[h]
     \centering
@@ -199,7 +199,90 @@ Let's begin to discuss how functions can run simultaneously using Go's \textbf{g
     
 \end{Def}
 
-\vspace{-.5em}
+\begin{Def}[Go Runtime Scheduler]
+
+    The Go runtime scheduler is responsible for managing goroutines via three conceptual entities:
+\textbf{The Go Scheduler: G, M, P}
+\begin{itemize}
+    \item \textbf{G (Goroutine):} A goroutine that holds the code to be executed.
+    \item \textbf{M (Thread):} An OS thread that executes Go code via system calls or remains idle.
+    \item \textbf{P (Processor):} Represents resources needed to execute code. The number of processors is determined by \snippet{GOMAXPROCS}.
+\end{itemize}
+
+\noindent
+If there are multiple goroutines, threads, and available processors, the scheduler matches them as follows:
+\begin{itemize}
+    \item Many \textbf{Gs} (goroutines) are mapped to available \textbf{Ms} (OS threads), which execute them using \textbf{Ps} (processors) as execution resources.
+\end{itemize}
+
+\noindent
+\textbf{Queues in the Scheduler}
+\begin{itemize}
+    \item \textbf{Global Run Queue (GRQ):} Holds all new goroutines that are yet to execute.
+    \item \textbf{Local Run Queue (LRQ):} Holds goroutines that are assigned to a specific \textbf{P}.
+\end{itemize}
+
+\noindent
+For example, let the processors in the scheduler be defined as 
+$
+P = \{ P_1, P_2, \dots, P_n \}
+$
+where \( n = \texttt{GOMAXPROCS} \). Then the scheduler follows the following steps:
+\begin{enumerate}
+    \item If \( P_1 \) has no more goroutines to execute, it follows these steps:
+    \begin{enumerate}
+        \item Check \textbf{GRQ} for a \textbf{G} (goroutine) roughly \textit{1/61th of the time}.
+        \item If nothing is found, check \textbf{LRQ} again.
+        \item If nothing is found, attempt to \textbf{steal} work from other \textbf{Ps}.
+        \item If nothing is found, check \textbf{GRQ} one last time.
+        \item Finally, \textbf{poll the network} (i.e., check for incoming network work).
+    \end{enumerate}
+\end{enumerate}
+\end{Def}
+
+\newpage
+\noindent
+To illustrate the Go runtime scheduler on a high-level, consider the following diagram in contrast to Figure \ref{fig:kernel}: 
+
+\begin{figure}[h]
+    
+    \includegraphics[width=1\textwidth]{Sections/rpc/high_sched.png}
+    \caption{Go runtime scheduler with G, M, P entities.}
+    \label{fig:go_scheduler}
+\end{figure}
+\noindent
+Where the system has many different processes $B$, $C$ and so on, we focus on the process that contains an instance of the Go runtime scheduler.
+Within this process each goroutine is scheduled by the Go runtime scheduler. The Go scheduler determines the number of threads needed
+and assigns goroutines to them. The process then presents these threads to the OS Scheduler which assigns them to the available cores.
+
+In particular, \textbf{The OS has the final decision on which threads run on which cores.} The Go runtime scheduler only manages what threads to present.
+This is still helpful as the Go runtime can context switch the threads between goroutines before the handoff. Hence, the name \textbf{lightweight threads}, as 
+context switching for the OS is expensive.
+
+\newpage 
+\noindent
+In particular we zoom in on the Go runtime scheduler of a single process: 
+\begin{figure}[h]
+    
+    \hspace{-5em}
+    \includegraphics[width=1.1\textwidth]{Sections/rpc/sheduler.png}
+    \caption{Go runtime scheduler within a single process.}
+    \label{fig:scheduler}
+\end{figure}
+
+\noindent
+Here our ``Goroutine Pool Space'' represents the latent goroutines waiting to be executed. 
+We populate the LRQs of each P and their assigned M thread. The Ms are presented to the OS Scheduler. Moreover, 
+the $X$ is some arbitrary thread belonging to another process on the system.\\
+For emphasis
+\begin{theo}[Go Runtime Scheduler vs. OS Scheduler]
+
+    The Go runtime only manages threads to present; The OS schedules threads to cores.
+\end{theo}
+\newpage 
+
+\noindent
+In all, the asynchronous nature of goroutines may create undefined behavior if not handled properly.
 \begin{Example}[Count to n using Goroutines]
 
     \label{ex:goroutine}
@@ -237,6 +320,13 @@ Let's begin to discuss how functions can run simultaneously using Go's \textbf{g
 
     Ensuring the main function waits for the goroutine to finish.
 \end{Example}
+
+\begin{theo}[Main Goroutine Thread]
+
+    the main function of a goroutine is too a kind of goroutine. We may refer to it as the \textbf{main goroutine} or \textbf{main thread}.
+    In particular, the main goroutine is the first to run and may finish before any other goroutine.
+\end{theo}
+
 
 \newpage 
 
@@ -292,6 +382,7 @@ Though since calls happen independent of each other means they happen simultaneo
 
 \newpage 
 
+\noindent
 Try these examples out in Go to get a feel for how goroutines work.
 
 \begin{Def}[Installing and Running Go Programs]
@@ -310,6 +401,7 @@ Try these examples out in Go to get a feel for how goroutines work.
     a little first, consider the following resource: \href{https://gobyexample.com/}{https://gobyexample.com/}.
     Though this text does assume prior programming knowledge and should be follow-able without the resource.
 \end{Tip}
+\subsection{Synchronization: Data Races \& Deadlocks}
 \noindent
 Asynchronous functions introduces a problem: If two threads access the same memory location at the same time,
 we face corruption of data as they try to write over each other:
@@ -324,13 +416,6 @@ To avoid data races we implement the following strategy:
 
     A \textbf{mutex} (short for \emph{mutual exclusion}) is a synchronization primitive that prevents multiple threads from simultaneously accessing shared resources. This allows a single thread to place a \textbf{lock} on the resource, ensuring exclusive access until the lock is released.
 \end{Def}
-
-\noindent
-We can characterize when to use a mutex in two scenarios:
-\begin{itemize}
-    \item \textbf{Writing to a shared resource:} Say a file or a database.
-    \item \textbf{When logical order is important:} Ensuring a function runs before another.
-\end{itemize}
 
 \newpage
     
@@ -349,7 +434,7 @@ Go has their own mutex implementation:
 \begin{Example}[Increasing a Counter Variable with Goroutines]
 
     \label{ex:counter}
-    Consider the following example where a function \snippet{incConuter()} increments a shared counter variable:
+    Consider the following example where a function \snippet{incCounter()} increments a shared counter variable:
     \begin{lstlisting}[language=Go, caption=Incrementing a Counter Variable, label={lst:counter}, numbers=none]
     ...
     var counter int // declaring global counter variable
@@ -418,6 +503,7 @@ Now to fix the previous example (\ref{ex:counter}) using a mutex:
 
     \noindent
     By using a mutex, we ensure that only one goroutine can access the shared counter variable at a time.
+    \underline{\textbf{Important Note:} This does not ensure the order in which the goroutines run.}
 \end{Def}
 
 \noindent
@@ -432,7 +518,6 @@ In a large project a logical mistake in a sea of processes can lead to a deadloc
 \newpage
 
 \noindent
-The next example though contrived, illustrates a deadlock scenario:
 \begin{Example}[Deadlock Scenario]
     
     Say we have functions \snippet{task1()} and \snippet{task2()} that each require a mutex lock:
@@ -456,6 +541,9 @@ The next example though contrived, illustrates a deadlock scenario:
     Depending on how the scheduler runs, these two tasks will lock each other out, halting the program indefinitely.
 \end{Example}
 
+
+\subsection{References \& Pointers in Go}
+
 \noindent
 In Go, problems may arise from how Go deals with scoped variables:
 \begin{Def}[Reference vs. Value Types]
@@ -473,4 +561,223 @@ In Go, problems may arise from how Go deals with scoped variables:
     closure is a reference to the variable, not the data itself.
 \end{Def}
 
+\newpage 
+
+\begin{Example}[Closures and Goroutines]
+
+    Let \snippet{data} be some channel and \snippet{do\_something()} be some function that returns a value:
+
+    \begin{lstlisting}[language=Go, numbers= none]
+    ...
+    batch := 0
+    for i := 0; i < k; i++ {
+        go func() {
+            data <- do_something(batch)
+        }()
+    }
+    batch++
+    ...
+    \end{lstlisting}
+
+    \noindent
+    Here, the \snippet{go func} closure will reference the \snippet{batch} variable, not the value. Hence the main program flow (the main thread) might increment \snippet{batch} 
+    before the goroutine runs, leading to undefined behavior. To fix this, we pass the variable as an argument to the goroutine:
+
+    \begin{lstlisting}[language=Go, numbers= none]
+    ...
+    batch := 0
+    for i := 0; i < k; i++ {
+        go func(batch int) {
+            data <- do_something(batch)
+        }(batch)
+    }
+    batch++
+    ...
+    \end{lstlisting}
+
+    \noindent
+    Now the goroutine will receive the value of \snippet{batch} at the time of the loop iteration.
+\end{Example}
     
+\noindent
+Many data-structures in Go pass by value. Pointers ensure we are updating the original object:
+\begin{Def}[Passing Pointers in Go]
+
+    Pointers in Go pass the memory address of a variable via the \snippet{\&} operator. To access the value stored at the memory address, use the \snippet{*} operator. E.g.,
+    \begin{lstlisting}[language=Go, numbers=none]
+    var x int = 5
+    var y *int = &x // y stores the memory address of x
+    fmt.Println(*y) // Prints the value stored at the memory address
+    \end{lstlisting}
+\end{Def}
+
+\newpage 
+
+\subsection{Waiting for Goroutines to Finish}
+\noindent
+Previously we used \snippet{time.Sleep()} to wait for goroutines to finish; However, Go provides a solution to this problem:
+
+\begin{Def}[Wait Groups]
+
+    A \textbf{wait group} is a synchronization primitive in Go that allows the main program to wait for a collection of goroutines. 
+    A wait group is a counter spawned with \snippet{sync.WaitGroup} and has three main methods:
+    \begin{itemize}
+        \item \snippet{Add(n int)}: Increments the wait group counter by \snippet{n}.
+        \item \snippet{Done()}: Decrements the wait group counter by 1.
+        \item \snippet{Wait()}: Blocks the main program until the wait group counter reaches 0.
+    \end{itemize}
+\end{Def}
+
+\begin{Example}[Using Wait Groups]
+
+    \label{ex:waitgroup}
+    Let's consider the following example where we use a wait group to wait for goroutines to finish:
+    \begin{lstlisting}[language=Go, numbers=none]
+    ...
+    var wg sync.WaitGroup // declaring a wait group
+    var mu sync.Mutex 
+    for i := 0; i < 1000; i++ {
+        wg.Add(1) // Increment the wait group counter
+        go func() {
+            mu.Lock()
+            incCounter()
+            mu.Unlock()
+            wg.Done() // Decrement the wait group counter
+        }()
+    }
+    wg.Wait() // Wait for wg counter to reach 0
+    \end{lstlisting}
+    \noindent
+\end{Example}
+
+\noindent
+An aside on a handy feature of Go: 
+\begin{Def}[Deferred Function Calls]
+
+    In Go, the \snippet{defer} keyword  \textbf{defers a function call} to run at the end of the innermost scoped function. 
+    Deferred functions are often used to ensure cleanup tasks are executed, such as closing files or releasing resources.
+\end{Def}
+
+\begin{Example}[Deferred Function Calls]
+
+    \label{ex:defer}
+    Consider the previous example (\ref{ex:waitgroup}) with a deferred function call of \snippet{wg.Done()}:
+
+    \begin{lstlisting}[language=Go, label={lst:defer}, numbers=none]
+    ...
+    for i := 0; i < 1000; i++ {
+        wg.Add(1) 
+        go func() {
+            defer wg.Done() // Deferred function call
+            mu.Lock() 
+            incCounter()
+            mu.Unlock() 
+        }()
+    }...
+\end{lstlisting}
+\noindent
+The \snippet{wg.Done()} is deferred until the goroutine completes.
+\end{Example}
+
+\subsection{Sending Messages Between Goroutines}
+\noindent
+Now, say there are tasks $A$ and $B$, for which $B$ depends on the completion of $A$. Since $A$ and $B$ both run independently, we need a way for $B$ to wait for a signal from $A$. This is where \textbf{channels} come in:
+\begin{Def}[Channels]
+
+    A \textbf{channel} is a typed conduit through which goroutines communicate. Channels allow goroutines to send and receive data.
+    Channels are created using the \snippet{make()} function with the \snippet{chan} keyword.
+\end{Def}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Sections/rpc/channel.png}
+    \caption{A collection of Goroutines competing for the next channel resource.}
+    \label{fig:channel}
+\end{figure}
+\noindent
+Note, despite the diagrams order of goroutines, the order in which they run is up to the Go runtime scheduler.
+
+\begin{Example}[Synchronizing Incoming Data Processing]
+
+Consider the following example where we use a channel to synchronize the processing of incoming data:
+\begin{lstlisting}[language=Go, caption=Using Channels to Synchronize Downloading and Processing, label={lst:channels}, numbers=none]
+    package main
+
+    import (
+        "fmt"
+        "sync"
+        "time"
+    )
+
+    // Download function simulates downloading data
+    func download(wg *sync.WaitGroup, i int) {
+        defer wg.Done()
+        fmt.Printf("Downloading: Resource_%d...\n", i)
+        time.Sleep(5 * time.Second) // Simulating download time
+        fmt.Printf("Download complete: Resource_%d\n", i)
+    }
+
+    // Process function simulates processing data
+    func process(wg *sync.WaitGroup, i int) {
+        defer wg.Done()
+        fmt.Printf("Processing: Resource_%d...\n", i)
+        time.Sleep(1 * time.Second) // Simulating processing time
+        fmt.Printf("Processing complete: Resource_%d\n", i)
+    }
+
+    func main() {
+        var wg sync.WaitGroup
+
+        // Simulating downloading and processing 5 resources concurrently
+        for i := 0; i < 5; i++ {
+            wg.Add(1)
+            go download(&wg, i)
+            wg.Add(1)
+            go process(&wg, i)
+        }
+
+        wg.Wait()
+        fmt.Println("Main function exits")
+    }
+    \end{lstlisting}
+\end{Example}
+
+\newpage 
+
+\begin{theo}[Channel Types]
+
+    In Go, channels can be either \textbf{unbuffered} or \textbf{buffered}:
+    \begin{itemize}
+        \item \textbf{Unbuffered Channels:} Require a sender and receiver to be ready to communicate. If the receiver is not ready, the sender will block until the receiver is ready.
+        \item \textbf{Buffered Channels:} Allow a sender to send data to a channel without the receiver being ready. The channel will store the data until the receiver is ready.
+    \end{itemize}
+\end{theo}
+
+Unbuffered channels undergo a \textbf{handshake} process:
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{Sections/rpc/unbuffered.png}
+    \caption{Handshake process of an unbuffered channel.}
+    \label{fig:handshake}
+\end{figure}
+
+\noindent
+Say Alice (left) want to send a message to Bob (right) over a channel. (1) The channel is blocked until Bob is ready to receive. (2) The channel is no longer blocked 
+read for the exchange. (3) Alice preforms a \textbf{send} and is locked into the operation until Bob \textbf{receives} the message. (4-5) Bob enters the channel and receives the message;
+Both Alice and Bob are locked into the operation until the message exchange is complete.
+(6) they both are free to continue their operations.
+
+\newpage 
+
+\noindent
+In contrast buffered channels allow for a more asynchronous approach:
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{Sections/rpc/buffered.png}
+    \caption{Buffered channel allowing for asynchronous communication.}
+    \label{fig:buffered}
+\end{figure}
+
+\noindent
+(1) Here Alice (left) fills the channel from left to right with messages. (2) The channel is full and Alice is free to continue her operations. (3) Bob (right) takes the rightmost message from the channel. (4) Bob is free to continue his operations, leaving the channel.

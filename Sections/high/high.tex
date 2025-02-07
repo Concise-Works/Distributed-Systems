@@ -163,7 +163,7 @@ The CPU performs instructions via the following steps:
 \begin{Def}[Threads: Concurrency \& Parallelism]
 
     A \textbf{thread} is a unit of logic (a segment of code) to be executed by a CPU core. \textbf{A core can only run one thread at a time}.
-    The core itself is called the \textbf{hardware-thread}, while our units of logic are called \textbf{software-threads}.
+    The core itself is called the \textbf{hardware-thread}, while our units of logic are called \textbf{software-threads} or \textbf{OS-threads}.
 
     The OS system scheduler manages the hardware-threads, and assigns software-threads to them. Switching between software-threads on a hardware-thread is called \textbf{context switching}.
     Context switching is expensive, as it requires saving the current state of the software-thread and loading the state of the new software-thread. Though it provides the illusion of tasks running simultaneously, 
@@ -183,6 +183,7 @@ The CPU performs instructions via the following steps:
     \centering
     \includegraphics[width=.8\textwidth]{./Sections/high/user_kernel.png}
     \caption{Process threads scheduled by the OS kernel and processed by the CPU.}
+    \label{fig:kernel}
 \end{figure}
 
 \newpage 
