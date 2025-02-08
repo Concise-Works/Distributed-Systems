@@ -188,5 +188,51 @@ In contrast, slices:
 \end{Def}
 
 \newpage 
+\subsection{Repeating Tasks: Tick and Ticker in Go}
 
+In Go, the \snippet{time} package provides two types for repeating tasks at regular intervals:
+
+\begin{Def}[\texttt{time.Tick} and \texttt{time.Ticker} in Go]
+
+    The \texttt{time} package in Go provides two mechanisms for scheduling repeated tasks at fixed intervals:
+    
+    \begin{itemize}
+        \item \textbf{\snippet{time.Tick(duration)}}: Returns a channel that sends the current time at regular intervals. It is a convenience function but \textbf{}{cannot be stopped}.
+        \item \textbf{\snippet{time.NewTicker(duration)}}: Creates a \snippet{Ticker} object, which provides a \snippet{.Stop()} method to halt the ticker. Additionally the \snippet{.C} returns a channel from which the signal can be read.
+    \end{itemize}
+\end{Def}
+
+\begin{Example}[Record a signal n times every second]
+
+    Say we want to record a signal $n$ times every second. We can use a \snippet{time.Ticker}:
+    \begin{lstlisting}[language=Go, numbers=none]
+    package main
+    import "fmt"; import "time"; import "sync"
+    
+    func Status(ch <-chan time.Time, wg *sync.WaitGroup) {
+        defer wg.Done()
+        <-ch // Wait for signal
+        fmt.Println("Status: OK")
+    }
+    
+    func main() {
+    
+        n := 5
+        ticker := time.NewTicker(time.Second)
+        tickerChan := ticker.C
+        var wg sync.WaitGroup
+    
+        // Spawns n goroutines which waiting for the signal
+        for i := 0; i < n; i++ {
+            wg.Add(1)
+            go Status(tickerChan, &wg)
+        }
+        wg.Wait()
+        ticker.Stop()
+    }
+    \end{lstlisting}
+
+    \noindent
+    This type of example can be extended to perform any task at a given interval.
+\end{Example}
     
