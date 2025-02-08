@@ -199,6 +199,7 @@ In Go, the \snippet{time} package provides two types for repeating tasks at regu
     \begin{itemize}
         \item \textbf{\snippet{time.Tick(duration)}}: Returns a channel that sends the current time at regular intervals. It is a convenience function but \textbf{}{cannot be stopped}.
         \item \textbf{\snippet{time.NewTicker(duration)}}: Creates a \snippet{Ticker} object, which provides a \snippet{.Stop()} method to halt the ticker. Additionally the \snippet{.C} returns a channel from which the signal can be read.
+        This channel is read only, hence a type of \snippet{<-chan time.Time}.
     \end{itemize}
 \end{Def}
 
@@ -236,3 +237,58 @@ In Go, the \snippet{time} package provides two types for repeating tasks at regu
     This type of example can be extended to perform any task at a given interval.
 \end{Example}
     
+\newpage 
+
+\subsection{Reading from Multiple Channels: Select in Go}
+
+Now to discuss conditionally reading from multiple channels:
+
+\begin{Def}[\texttt{select} in Go]
+
+    The \snippet{select} statement in Go allows a goroutine to wait on multiple channels and perform an action as soon as one of them receives a value:
+    \begin{lstlisting}[language=Go]
+    select {
+    case val := <-ch1:
+        // Received from ch1
+    case val := <-ch2:
+        // Received from ch2
+    default:
+        // Executes if no channels are ready
+    }
+    \end{lstlisting}
+
+    \noindent
+    \textbf{Note:} \snippet{default} is optional. If multiple channels are ready, \underline{\textbf{one is chosen at random.}}
+    \end{Def}
+    
+    \vspace{-.5em}
+\begin{Example}[ Conditianlly Waiting for a Signal]
+    
+    Consider a situation where we conditionally wait on a channel for a signal:
+    \begin{lstlisting}[language=Go, numbers=none]
+    ... // Imported "math/rand"
+    func Status(rc chan string) {
+        for { // Loops forever sending a message every second
+            // Randomly select a status
+            rc <- []string{"Great", "Ok", "Slow"}[rand.Intn(3)]
+            time.Sleep(1 * time.Second)
+        }
+    }
+    
+    func main() {
+        replyChannel := make(chan string) // Channel for receiving status
+        go Status(replyChannel) // Asynchronous status generator
+        for {  // Loop forever waiting for such status
+            select {
+            case <-replyChannel:
+                fmt.Println("Status:", <-replyChannel)
+            default:
+                fmt.Println("Waiting...")
+                time.Sleep(351 * time.Millisecond)
+            }
+        }
+    }
+    \end{lstlisting}
+    \end{Example}
+
+
