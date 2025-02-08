@@ -239,7 +239,7 @@ In Go, the \snippet{time} package provides two types for repeating tasks at regu
     
 \newpage 
 
-\subsection{Reading from Multiple Channels: Select in Go}
+\subsection{Conditionally Reading from Channels: Select in Go}
 
 Now to discuss conditionally reading from multiple channels:
 
@@ -274,7 +274,7 @@ Now to discuss conditionally reading from multiple channels:
             time.Sleep(1 * time.Second)
         }
     }
-    
+
     func main() {
         replyChannel := make(chan string) // Channel for receiving status
         go Status(replyChannel) // Asynchronous status generator
