@@ -1,5 +1,5 @@
 \newpage 
-\section{Remote Procedure Call (RPC)}
+\section{Understanding RPCs \& Synchronization with Go}
 This section will cover the concept of Remote Procedure Calls (RPCs) and how they are used in distributed systems and use the Go programming language to demonstrate such.
 \subsection{Establishing a Client-Server Connection}
 
@@ -190,15 +190,38 @@ Let's begin to discuss how functions can run simultaneously using Go's \textbf{g
 \newpage
 
 \noindent
+To illustrate the difference between synchronous and asynchronous function calls, consider the following diagram:
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{Sections/rpc/Async.png}
+    \caption{Synchronous vs. Asynchronous Function Calls.}
+    \label{fig:sync_async}
+\end{figure}
+
+\noindent
+\begin{itemize}
+\item Function $P()$ (above) is the main function for which our program is running. It makes a synchronous call to function $f()$, which blocks the main program flow until $f()$ completes.
+\item In contrast, function $P()$ (below) instead makes an asynchronous call to function $f()$, allowing the main program to continue executing while $f()$ runs independently.
+\end{itemize}
+
+\noindent
 \begin{Def}[Asynchronous Function Calls in Go: Goroutines]
 
     A \textbf{goroutine} is a \textbf{lightweight} (lower memory overhead and scheduling cost compared to traditional OS threads)
     concurrent execution thread in Go. Goroutines enable functions to run asynchronously. Unlike traditional operating system threads, goroutines are managed by Go's runtime.
     
-    A goroutine is created using the \texttt{go} keyword before a function call, signaling to the Go runtime to run the function asynchronously from the main program flow.
+    A goroutine is created using the \snippet{go} keyword before a function call, signaling to the Go runtime to run the function asynchronously from the main program flow.
     
 \end{Def}
 
+\newpage 
+
+\noindent
+The below details the Go runtime scheduler. \textbf{Note}: that overtime the Go runtime's algorithm may change to improve 
+performance. This isn't key to understanding the content of this text, but is provided for completeness sake. Here---at the time of writing---is how it works at a high-level:
+
+\vspace{2em}
 \begin{Def}[Go Runtime Scheduler]
 
     The Go runtime scheduler is responsible for managing goroutines via three conceptual entities:
@@ -240,6 +263,13 @@ where \( n = \texttt{GOMAXPROCS} \). Then the scheduler follows the following st
 \end{enumerate}
 \end{Def}
 
+\vfill
+\begin{center}
+    
+    \textit{The next page includes a diagram of the Go runtime scheduler above.}
+\end{center}
+
+\vfill
 \newpage
 \noindent
 To illustrate the Go runtime scheduler on a high-level, consider the following diagram in contrast to Figure \ref{fig:kernel}: 
@@ -264,7 +294,7 @@ context switching for the OS is expensive.
 In particular we zoom in on the Go runtime scheduler of a single process: 
 \begin{figure}[h]
     
-    \hspace{-5em}
+    \hspace{-3em}
     \includegraphics[width=1.1\textwidth]{Sections/rpc/sheduler.png}
     \caption{Go runtime scheduler within a single process.}
     \label{fig:scheduler}
@@ -807,4 +837,3 @@ To make the last example (\ref{ex:channels}) use a buffered channel, we can modi
     \noindent
     Here, the channel has a buffer size of n, allowing up to n messages to be stored before the receiver is ready.
 \end{Example}
-

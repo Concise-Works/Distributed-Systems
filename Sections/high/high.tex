@@ -199,10 +199,19 @@ Now since the CPU isn't idle on I/O operations, the overall time between tasks i
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=.8\textwidth]{./Sections/high/user_kernel.png}
+    \includegraphics[width=1\textwidth]{./Sections/high/user_kernel.png}
     \caption{Process threads scheduled by the OS kernel and processed by the CPU.}
     \label{fig:kernel}
 \end{figure}
+
+\noindent
+In summary, what we need to know are these key points:
+\begin{itemize}
+    \item The CPU executes instructions via processing units called cores/hardware-threads.
+    \item The OS schedules software-threads from processes to run on hardware-threads.
+    \item A core can only run one software-thread at a time, but can switch between them.
+    \item Context switching on a single core is called concurrency, while utilizing multiple cores in unison (multi-threading) is called parallelism.
+\end{itemize}
 
 
 \newpage 
