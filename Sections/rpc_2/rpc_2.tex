@@ -62,3 +62,131 @@ Now consider the scenario where we have two resources to work with, resulting in
 \end{figure}
 \noindent
 In this case, once the first search is done, we can start booking the flight and search for the next flight in parallel.
+\newpage 
+
+\subsection{Arrays \& Slices in Go}
+
+\noindent
+Arrays in Go act like arrays in other languages, a fixed-size collection of items of the same type. Slices, on the other hand, allow us to work with a dynamically-sized sequence of elements.
+
+\begin{Def}[Arrays in Go]
+
+    An \textbf{array} in Go is a fixed-size collection of elements of the same data type. Arrays in Go are value types, meaning they are copied when assigned to a new variable.\\
+    
+    \noindent
+    Arrays are declared using the syntax:
+    \begin{lstlisting}[language=Go]
+    var arr [size]Type
+    \end{lstlisting}
+    
+    \noindent
+    For example, an array of integers with 5 elements:
+    \begin{lstlisting}[language=Go]
+    var numbers [5]int
+    \end{lstlisting}
+    
+    \noindent
+    Elements in an array can be accessed using zero-based indexing:
+    \begin{lstlisting}[language=Go]
+    numbers[0] = 10  // Assign value
+    fmt.Println(numbers[0]) // Access value
+    \end{lstlisting}
+    
+    \noindent
+    Arrays cannot be resized, and their size must be known at compile time. For dynamic collections, slices are preferred.
+\end{Def}
+
+\begin{Example}[Doubling Items in an array]
+
+    Consider the following example where we double each element in an array:
+    \begin{lstlisting}[language=Go, numbers=none]
+    package main
+
+    import "fmt"
+
+    func main() {
+        // Initialize an array
+        numbers := [5]int{1, 2, 3, 4, 5}
+
+        // Double each element in the array
+        for i := 0; i < len(numbers); i++ {
+            numbers[i] *= 2 // Shorthand for numbers[i] = numbers[i] * 2
+        }
+
+        // Print the modified array
+        fmt.Println(numbers)
+    }
+    // Output: [2 4 6 8 10]
+    \end{lstlisting}
+\end{Example}
+
+\newpage
+    
+\noindent
+In contrast, slices:
+
+\begin{Def}[Slices in Go]
+    
+    A \textbf{slice} is a dynamically-sized reference to a portion of a single underlying array.
+
+    \noindent
+    Slices are declared using square brackets without specifying a fixed size:
+    \begin{lstlisting}[language=Go]
+    var numbers []int // A slice of integers
+    \end{lstlisting}
+    
+    \noindent
+    Slices are typically created using the \snippet{make} function or by slicing an existing array:
+    \begin{lstlisting}[language=Go]
+    // Using make()
+    numbers := make([]int, 5) // Creates a slice with length 5
+    
+    // Slicing an array
+    arr := [5]int{1, 2, 3, 4, 5}
+    slice := arr[1:4] // Slice from index 1 to 3 -> {2, 3, 4}
+    \end{lstlisting}
+    
+    \noindent
+    Slices maintain a reference to the original array, meaning modifications affect both:
+    \begin{lstlisting}[language=Go]
+    arr := [5]int{1, 2, 3, 4, 5}
+    slice := arr[1:3]
+    slice[0] = 99 // Modifies arr[1] as well
+    fmt.Println(arr)  // Output: [1 99 3 4 5]
+    \end{lstlisting}
+
+    \noindent
+    The \snippet{append()} function modifies slices given there's enough capacity:
+    \begin{lstlisting}[language=Go]
+    arr := [5]int{1, 2, 3, 4, 5}
+    slice := arr[:1] // Slice from index 0 to 0 -> {1}
+    slice = append(slice, 7, 8) // Adds elements to the slice
+    fmt.Println(slice) // Output: [1 7 8]
+    fmt.Println(arr)   // Output: [1 7 8 4 5] (modified)
+    \end{lstlisting}
+
+    \noindent
+    If \snippet{append()} exceeds the slice's capacity, a new array is allocated and referenced by the slice:
+    \begin{lstlisting}[language=Go]
+    ... // Previous code
+    fmt.Println(cap(slice)) // Output: 5 (capacity of the slice)
+    slice = append(slice, 7, 8, 9, 10, 11) // Exceeds capacity, (6 total)
+    fmt.Println(slice) // Output: [1 7 8 9 10 11]
+    fmt.Println(arr)   // Output: [1 2 3 4 5] (unchanged)
+    \end{lstlisting}
+
+    \noindent
+    To copy an array to a slice, use the \snippet{copy()} function:
+    \begin{lstlisting}[language=Go]
+    arr := [5]int{1, 2, 3, 4, 5}
+    slice := make([]int, len(arr))
+    copy(slice, arr) // Syntax: copy(destination, source)
+    slice[0] = 99
+    fmt.Println(slice) // Output: [99 2 3 4 5]
+    fmt.Println(arr)   // Output: [1 2 3 4 5] (unchanged)
+    \end{lstlisting}
+\end{Def}
+
+\newpage 
+
+    
