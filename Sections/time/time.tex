@@ -150,7 +150,7 @@ Now we discuss a method that utilizes causal order, though assigns logical times
 
 \noindent
 In practice the only thing we have access to are these logical timestamps, which we must evaluate:
-\begin{theo}[Comparing Lamport Timestamps]
+\begin{theo}[Comparing Lamport Timestamps Causalaity]
 
     Given two events $a$ and $b$ with timestamps $t(a)$ and $t(b)$, with $r$ trace, we only guarantee:
     \begin{itemize}
@@ -177,12 +177,104 @@ We may now derive the following about concurrency:
 Lamport Clocks are useful for causal ordering, but they do not capture the full context of events:
 \begin{Def}[Vector Clocks]
 
-   Let there be $p_1, p_2, \ldots, p_n$ processes each with a vector (array) $v$ of size $n$. Each index $v[i]$ stores the logical time of process $p_i$.
+   Let there be $p_1, p_2, \ldots, p_n$ processes each with a vector (array) $v$ of size $n$. Index $v_i[i]$ stores the logical time of process $p_i$.
    Then, the following rules apply:
    \begin{itemize}
-    \item \textbf{Initialization:} Each $v[i]$ of $p_i$ is initialized to 0 (e.g., $[0,0,\dots,0]$).
-    \item \textbf{Incrementing:} For each event $e$ in process $p_i$, increment $v[i]$ by 1.
-    \item \textbf{Sending:} When $p_i$ sends a message $m$ to $p_j$, include $v$ in $m$ (\textbf{no increment}).
-    \item \textbf{Receiving:} Upon receiving message $m$, process $p_j$ sets $v[j] = \max(v[j], m[j])$.
+    \item \textbf{Initialization:} Each $\ell\in v_i$ of $p_i$ is initialized to 0 (e.g., $[0,0,\dots,0]$).
+    \item \textbf{Incrementing:} For each event $e$ in process $p_i$, increment $v_i[i]$ by 1.
+    \item \textbf{Sending:} When $p_i$ sends a message $m$ to $p_j$, include $v_i$ in $m$ (\textbf{no increment}).
+    \item \textbf{Receiving:} Upon receiving message $m$, process $p_j$ sets $v_j[j] = \max(v_j[j], v_i[j])$.
    \end{itemize}
 \end{Def}
+
+\begin{Example}[Vector Clocks Example]
+
+    Observe the following events and their corresponding vector clocks:\\
+
+    \hspace{4em}
+    \includegraphics[width=.7\textwidth]{./Sections/time/vector.png}
+
+    \vspace{1em}
+
+\end{Example}
+
+\newpage 
+
+\noindent
+There too is a method of comparing vector clocks:
+\begin{theo}[Comparing Vector Clocks]
+
+    Given two vectors $v_p$ and $v_q$ for processes $p$ and $q$, we may derive the following:
+    \begin{itemize}
+        \item $v_p \leq v_q \Longleftrightarrow \forall \ell:  v_p[\ell] \leq v_q[\ell]$
+        \item $v_p < v_q \Longleftrightarrow \forall \ell:  v_p[\ell] < v_q[\ell]$
+        \item $v_p <> v_q \text{ (non-comparable) } \Longleftrightarrow \forall \ell:  \neg(v_p < v_q ) \land \neg(v_p > v_q)$
+    \end{itemize}
+
+    \noindent
+    i.e.,
+    \begin{itemize}
+        \item $v_p \leq v_q$: if and only if all corresponding indexes in $v_p$ are less than or equal to $v_q$.
+        \item $v_p < v_q$: if and only if all corresponding indexes in $v_p$ are less than $v_q$.
+        \item $v_p <> v_q$: if and only if there are at least two element pairs between $v_p$ and $v_q$ that are greater and less than each other.
+        (e.g., $v_p = [1,2]$ and $v_q = [2,1]$, as $1 < 2$ and $2 > 1$).
+    \end{itemize}
+\end{theo}
+
+\noindent
+And for causality we have:
+\begin{theo}[Vector Clocks Causality]
+
+    Given two events $a$ and $b$ with vector clocks $v(a)$ and $v(b)$, we may derive the following:
+    \begin{itemize}
+        \item If $v(a) < v(b)$, then $a \rightarrow_r b$.
+        \item If $a \rightarrow_r b$, then $v(a) < v(b)$.
+    \end{itemize}
+\end{theo}
+
+\noindent
+\rule{\textwidth}{0.4pt}\\
+
+\begin{Exercise} Given the following Lamport timestamps, determine the causal order relationships:
+
+    \begin{itemize}
+        \item[(a)] $(0,P)\ ?\ (0,Q)$
+        \item[(b)] $(1,P)\ ?\ (0,Q)$
+        \item[(c)] $(0,P)\ ?\ (1,Q)$
+    \end{itemize}
+\end{Exercise}
+
+\begin{Exercise} Given the following Vector clocks, determine the causal order relationships:
+
+    \begin{itemize}
+        \item[(a)] $[0,0]\ ?\ [0,0]$
+        \item[(b)] $[1,0]\ ?\ [0,0]$
+        \item[(c)] $[0,1]\ ?\ [1,0]$
+    \end{itemize}
+\end{Exercise}
+
+\hfill \textit{Answers on the next page.}\hfill \null
+
+\newpage 
+
+\begin{Answer} Given the following Lamport timestamps, determine the causal order relationships:
+
+    \begin{itemize}
+        \item[(a)] $(0,P)\ ?\ (0,Q)$: $P \parallel Q$
+        \item[(b)] $(1,P)\ ?\ (0,Q)$: $P \parallel Q$
+        \item[(c)] $(0,P)\ ?\ (1,Q)$: $Q \parallel P$
+    \end{itemize}
+
+    \noindent
+    \textbf{Note:} The Lamport timestamps are not enough to determine causal order relationships between independent processes, unless 
+    we have the context of the execution trace.\\
+\end{Answer}
+
+\begin{Answer} Given the following Vector clocks, determine the causal order relationships:
+
+    \begin{itemize}
+        \item[(a)] $[0,0]\ ?\ [0,0]$: $[0,0] \parallel [0,0]$
+        \item[(b)] $[1,0]\ ?\ [0,0]$: $[1,0] \not\rightarrow [0,0]$
+        \item[(c)] $[0,1]\ ?\ [1,0]$: $[0,1] <> [1,0]$
+    \end{itemize}
+\end{Answer}
