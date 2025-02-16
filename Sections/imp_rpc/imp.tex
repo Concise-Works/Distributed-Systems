@@ -1,0 +1,263 @@
+\newpage 
+\section{Implementing RPCs with Go}
+Before we can make RPC calls in Go, we need to understand Go's typing system.
+\subsection{Typing in Go}
+
+\begin{Def}[Typing in Go]
+
+    Go is a statically typed language, meaning every variable has a fixed type at compile time. The language provides several built-in types, including:
+\textbf{Basic Types:} \snippet{int}, \snippet{float64}, \snippet{string}, \snippet{bool}, and \textbf{Composite Types:} \snippet{array}, \snippet{slice}, \snippet{map}, \snippet{struct}, \snippet{interface}.
+    
+    A \textbf{type} in Go can also be user-defined using the \snippet{type} keyword. For example, we can define a custom structure:
+    
+    \begin{lstlisting}[language=Go, numbers=none]
+    type Person struct {
+        Name string
+        Age  int
+    }
+    \end{lstlisting}
+    
+    A \snippet{struct} groups related fields together, allowing us to represent objects with multiple attributes. We can create and use instances of this struct:
+    
+    \begin{lstlisting}[language=Go, numbers=none]
+    p := Person{Name: "Alice", Age: 25}
+    fmt.Println(p.Name) // Outputs: Alice
+    \end{lstlisting}
+   
+\end{Def}
+    
+\begin{Def}[Typing Functions in Go]
+
+    Functions are explicitly typed, meaning parameters and return values must be declared:
+    
+    \begin{lstlisting}[language=Go, numbers=none]
+    // Takes two ints and returns an int
+    func Add(x int, y int) int { 
+        return x + y
+    }
+
+    // We can shorthand parameters of the same type:
+    func Divide(x, y int) (int, error) { // Returns an int and an error
+        if y == 0 {
+            return 0, fmt.Errorf("division by zero")
+        }
+        return x / y, nil
+    }
+    \end{lstlisting}
+    
+    \noindent
+    Here, \snippet{fmt.Errorf()} generates an error message.
+    
+\end{Def}
+    
+\begin{Def}[Methods in Go: Pointers vs. Values]
+
+    In Go, methods can be defined for both pointer receivers (\snippet{*T}) and value receivers (\snippet{T}). A method with a pointer receiver can modify the original struct, while a method with a value receiver works on a copy.
+    Consider a struct representing a rectangle:
+    
+    \begin{lstlisting}[language=Go, numbers=none]
+    package main; import "fmt"
+
+    type rect struct {
+        width, height int
+    }
+    
+    // Pointer receiver: Can modify the original struct
+    func (r *rect) area() int {
+        return r.width * r.height
+    }
+    
+    // Value receiver: Works on a copy of rect
+    func (r rect) perim() int {
+        return 2*r.width + 2*r.height
+    }
+    
+    func (r *rect) setWidth(w int) {
+        r.width = w
+    }
+    
+    func (r rect) setHeight(h int) {
+        r.height = h
+    }
+    
+    func main() {
+        
+        r := rect{width: 10, height: 5}
+        // Converts r.area() to (&r).area() automatically
+        fmt.Println("area: ", r.area())  // 50
+        fmt.Println("perim:", r.perim()) // 30
+    
+        rp := &r
+        // Converts rp.perim() to (*rp).perim() automatically
+        fmt.Println("perim:", rp.perim()) // 30
+        fmt.Println("area: ", rp.area())  // 50
+    
+        r.setWidth(20)
+        r.setHeight(10)
+        fmt.Println("width:", r.width) // 20
+        fmt.Println("height:", r.height) // 5
+    }
+    \end{lstlisting}
+    
+    \end{Def}
+    
+    \newpage 
+
+    \subsection{Go's RPC Package}
+    In Go, we can use the \snippet{net/rpc} package to implement server-clint RPCs.
+
+    \begin{Def}[Setting Up an RPC Server and Client in Go]
+    
+    \noindent
+    \textbf{Setting Up an RPC Server}:
+    To create an RPC server in Go, we need to,
+    \begin{itemize}
+        \item Define a \textbf{service type} (a struct) that will handle remote calls.
+        \item Implement \textbf{methods} that satisfy the RPC requirements.
+        \item Register the service using \snippet{rpc.Register()}.
+        \item Set up a network listener using \snippet{net.Listen()}.
+        \item Handle requests using \snippet{rpc.HandleHTTP()} and \snippet{http.Serve()}.
+    \end{itemize}
+    
+    \noindent
+    \textbf{RPC Method Requirements}:
+    Methods must satisfy these constraints or be ignored:
+    \begin{itemize}
+        \item The method itself and its \textbf{type} must be exported.
+        \item The method must return a single value of type \snippet{error}, and have exactly \textbf{two arguments}, both of which must be \textbf{exported or built-in types}.
+        \item The method's \textbf{second argument must be a pointer}.
+    \end{itemize}
+    
+    \noindent
+    E.g. Signature,
+    
+    \begin{lstlisting}[language=Go, numbers=none]
+    func (t *T) MethodName(argType T1, replyType *T2) error
+    \end{lstlisting}
+    
+    \noindent
+    \textbf{Setting Up an RPC Client}:
+    To communicate with the RPC server, a client must,
+    \begin{itemize}
+        \item Establish a connection using \snippet{rpc.DialHTTP()}.
+        \item Call remote methods synchronously with \snippet{client.Call()}.
+        \item Call remote methods asynchronously with \snippet{client.Go()}.
+    \end{itemize}
+    \end{Def}
+
+    \begin{Example}[Simple Local Arithmetic RPC (Part 1)]
+        Let's create a simple Arithmetic RPC. First let's setup our file structure:\\
+    \noindent
+    \rule {.9\textwidth}{0.5pt}
+    
+        \dirtree{%
+        .1 arith/.
+        .2 server/.
+        .3 server.go.
+        .2 client.go.
+        }
+    \noindent
+        \rule {.9\textwidth}{0.5pt}
+\end{Example}
+        
+\newpage 
+
+\vspace{-1em}
+\begin{Example}[Simple Local Arithmetic RPC (Part 2)]
+
+    Now to setup the server:
+    \begin{lstlisting}[language=Go, numbers=none]
+package main; import "fmt"; import "log"; import "net"; import "net/rpc"
+
+    type ArithService int  // Define the service type
+
+    type Args struct {  A, B int } // Define the arguments struct
+
+    type Quotient struct { Quo, Rem int } // Reply struct for Dividing
+
+    // Both Multiply and Divide methods satisfy the RPC requirements
+    func (t *ArithService) Multiply(args *Args, reply *int) error {
+        *reply = args.A * args.B
+        return nil
+    }
+
+    func (t *ArithService) Divide(args *Args, quo *Quotient) error {
+        if args.B == 0 { return fmt.Errorf("divide by zero")}
+        quo.Quo = args.A / args.B
+        quo.Rem = args.A % args.B
+        return nil
+    }
+
+    func main() {
+        arith := new(ArithService)
+        err := rpc.Register(arith)
+        if err != nil { log.Fatal("Register Error:", err) }
+
+        listener, err := net.Listen("tcp", ":8080")
+        if err != nil { log.Fatal("RPC Start Error:", err)}
+
+        defer listener.Close()
+        log.Println("Arithmetic RPC server is running on port 8080")
+
+        for {
+            // Server waits until a connection is made
+            conn, err := listener.Accept()
+            if err != nil {
+                log.Println("Connection Error:", err)
+                continue
+            }
+            // Serves the connection on a new goroutine
+            go rpc.ServeConn(conn)
+        }
+    }
+    \end{lstlisting}
+    \end{Example}
+
+\newpage 
+
+\begin{Example}[Simple Local Arithmetic RPC (Part 3)]
+
+    Now to setup the client:
+    \begin{lstlisting}[language=Go, numbers=none]
+    package main; import "fmt"; import "log"; import "net/rpc"
+    
+    // Define the same structures as the server
+    type Args struct {
+        A, B int
+    }
+
+    type Quotient struct {
+        Quo, Rem int
+    }
+
+    func main() {
+        // Connect to the RPC server
+        client, err := rpc.Dial("tcp", "localhost:8080")
+        if err != nil {
+            log.Fatal("Error dialing:", err)
+        }
+        defer client.Close()
+
+        // Perform a multiplication RPC call
+        args := &Args{7, 8}
+        var reply int
+        err = client.Call("ArithService.Multiply", args, &reply)
+        if err != nil {
+            log.Fatal("Multiply error:", err)
+        }
+
+        // Perform a division RPC call
+        var quotient Quotient
+        err = client.Call("ArithService.Divide", args, &quotient)
+        if err != nil {
+            log.Fatal("Divide error:", err)
+        }
+
+        // Output: 7 * 8 = 56
+        fmt.Printf("ArithService: %d * %d = %d\n", args.A, args.B, reply)
+
+        // Output: 7 / 8 = 0, remainder = 7
+        fmt.Printf("ArithService: %d / %d = %d, remainder = %d\n", args.A, args.B, quotient.Quo, quotient.Rem)
+    }
+    \end{lstlisting}
+    \end{Example}
