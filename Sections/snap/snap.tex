@@ -30,3 +30,85 @@ This section discusses saving state. This is useful for fault-tolerance and syst
 \noindent 
 Here, in the inconsistent snapshot, $b$ is included without $d$, its causally preceding event. In the consistent snapshot, only $a$ is 
 included. In this snapshot $c$ and $d$ could be added without violating causality.
+
+\newpage 
+
+\noindent 
+There are many snapshot protocols, but we will focus on the \textbf{Chandy-Lamport Algorithm}.
+\begin{Def}[Chandy-Lamport Algorithm]
+
+    The \textbf{Chandy-Lamport Algorithm} is a snapshot algorithm that is used in distributed systems for
+    recording a consistent global state of an asynchronous system. In this protocol:
+    \begin{itemize}
+        \item The snapshot procedure does not disrupt other processes.
+        \item Each process records its local state.
+        \item Any process can initiate the snapshot.
+    \end{itemize}
+    \noindent
+    This model requires: 
+    \begin{itemize}
+        \item \textbf{No Failures}: No failures during the snapshot.
+        \item \textbf{First in, First out Channels (FIFO)}: no lost or duplicated messages.
+        \item \textbf{Strongly Connected Network}: All processes can reach every other process.
+        \item \textbf{Single Initiator}: Only one process can initiate the snapshot.
+    \end{itemize}
+    
+    \noindent 
+    The initiator then:
+    \begin{itemize}
+        \item Sends a \textbf{Marker} message to all outgoing channels.
+        \item Records local and incoming channel data.
+    \end{itemize}
+    Recipients of the marker message:
+    \begin{itemize}
+        \item Designates the channel which the marker arrived as \textbf{empty}.
+        \item Records their local state and all other incoming channels \underline{except the empty one}.
+        \item Sends the marker to all outgoing channels.
+    \end{itemize}
+    \noindent
+    \textbf{Completion}: When all processes have received and sent a marker, the snapshot is complete. This 
+    means every processes incoming channel is empty, hence the conclusion of the snapshot.
+\end{Def}
+
+\begin{Tip} Leslie Lamport recalls the Chandy-Lamport Algorithm's creation as follows:\\
+    ``The distributed snapshot algorithm described here came
+    about when I visited Chandy, who was then at the
+    University of Texas in Austin. He posed the problem to me
+    over dinner, but we had both had too much wine to think
+    about it right then. The next morning, in the shower, I came
+    up with the solution. When I arrived at Chandy's office, he
+    was waiting for me with the same solution.''\\
+
+    \noindent
+    - \href{https://lamport.azurewebsites.net/pubs/chandy.pdf}{https://lamport.azurewebsites.net/pubs/chandy.pdf}
+\end{Tip}
+
+\newpage 
+
+\noindent 
+Observe the following illustration of the Chandy-Lamport Algorithm given processes $p_1, p_2, p_3$:
+\begin{figure}[h] 
+    \centering
+    \includegraphics[width=1\textwidth]{Sections/snap/snap_exe.png}
+\end{figure}
+
+\noindent
+Examining these first three steps: (1) The system before the snapshot. (2) $p_1$ initiates the snapshot sending a marker to $p_2$ and recording its local and incoming channel's state. 
+(3) $p_2$ receives the marker, designating the incoming channel from $p_1$ as empty, sends the marker on outgoing channels, and begins recording. We also see, $p_1$ has recorded an incoming message $m_3$ from (2).\\
+
+\noindent
+We continue on the next page.
+
+\newpage 
+
+\noindent
+We continue the snapshot process with the following steps:
+\begin{figure}[h] 
+    \centering
+    \includegraphics[width=1\textwidth]{Sections/snap/snap_exe_2.png}
+\end{figure}
+
+\noindent
+(4) $p_3$ received the marker from $p_2$, and designates that incoming channel as empty. It begins recording state, sending out the marker to $p_1$ and $p_2$.
+Take notice that messages $m_4$ and $m_5$ have been recorded from (3).
+(5) All channels are now empty, concluding the snapshot. Take note that $m_6$ and $m_7$ were not recorded as they were sent on empty channels.
