@@ -26,7 +26,7 @@ In this scenario Many problems can arise: What if,
 \end{itemize}
 
 \noindent
-In all, wow do we ensure the propagation and synchronization of state across multiple servers?
+In all, how do we ensure the propagation and synchronization of state across multiple servers?
 We consider two models:
 \begin{Def}[Active vs. Passive Replication]
 
@@ -70,6 +70,7 @@ Still again, we run into the following problem:
 How do we ensure both parties receive consistent feedback, even when the primary server fails?
 \begin{Def}[Commit Point]
 
+    \label{def:commit}
     The point at which the client is committed to a transaction, goes as follows:
     \begin{enumerate}
         \item The client sends a request to the primary server and waits for an acknowledgment.
@@ -195,9 +196,27 @@ Consider the comparison between \textbf{Primary-Backup} vs. \textbf{Chain Replic
 
 \begin{theo}[Primary-Backup vs. Chain Replication]
 
-    In terms of \textbf{Latency}, \textbf{Primary-Backup} is faster than as the request can theoretically be processed in parallel. 
+    In terms of \textbf{Latency}, \textbf{Primary-Backup} is faster as the request can theoretically be processed in parallel. 
     However, \textbf{Chain Replication} is more \textbf{Fault-Tolerant} and allows for a greater degree of \textbf{Throughput}, allowing 
     requests to be processed in parallel.
 \end{theo}
 
+\newpage 
+
+\noindent
+\textbf{The Big Problem with Chain Replication}:\\
+
+\noindent
+There are some major assumptions that the Chain Replication Protocol makes:
+\begin{itemize}
+    \item \textbf{Fail-Stop Servers}: Failures are complete and detectable (does not address slow servers).
+    \item \textbf{Centralized Configuration Service}: Assumed never to fail.
+    \item \textbf{Failure Detection}: Failures are easy to identify; \textbf{However}, distinguishing temporary vs. permanent failures is challenging.
+    \begin{itemize}
+        \item Quick failure detection prevents stalls.
+        \item Over-eager detection may cause unnecessary data copying.
+    \end{itemize}
+\end{itemize}
+\noindent
+We will address these in the next section, discussing the \textbf{Raft Consensus Algorithm}.
 
