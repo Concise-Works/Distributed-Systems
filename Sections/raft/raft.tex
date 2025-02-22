@@ -69,7 +69,7 @@ In Raft, servers are given roles to manage the replication process.
     Raft servers exchange \textbf{heartbeats} to ensure liveliness. Each server on boot is randomly assigned a timeout value.
     After the initial timeout, a server sends a signal akin to the out-and-in beats of a heart.
     \textbf{Out-beats} are origin signals, and \textbf{in-beats} are return signals. If a server $\beta$
-    receives an out-beat from $\ell$ before its in-beat, the $\beta$ timer resets and follows $\ell$'s beat. 
+    receives an out-beat from another server $\ell$ before its in-beat, the $\beta$ timer resets and follows $\ell$'s beat. 
     The leader of the beat's timer is not used.
 \end{Def}
 
@@ -94,7 +94,7 @@ In Raft, servers are given roles to manage the replication process.
         Once the timer runs out, $\gamma$ transitions to $\varsigma$.
         \item \textbf{Candidate Election ($\varsigma\to\ell$):} $\varsigma$ votes for itself and sends a \textbf{RequestVote RPC} to all $\beta$, informing them of the new term and approval request.
         All $\beta$ vote once per term for the RPC they received first. If $\varsigma$ receives the majority vote, it transitions to $\ell$.
-        \item \textbf{Split Vote:} If all top $\varsigma$ tie in votes, all $\varsigma$ timeout, waiting for the next term. At this point, if a $\gamma$'s timer runs out before the $\varsigma$ turn-around, then $\gamma\to\varsigma$ starting the election process again.
+        \item \textbf{Split Vote:} If all top $\varsigma$ tie in votes, all $\varsigma$ timeout, waiting for the next term. At this point, if a $\gamma$'s timer runs out before the $\varsigma$ turn-around, then $\gamma\to\varsigma$ starting a new term election.
         \item \textbf{Behind Leaders \& Candidates ($\ell\to\gamma,\varsigma\to\gamma$):} If a $\ell$ or $\varsigma$ ever receives a heartbeat from a higher term $\beta$, it reverts to $\gamma$. Additionally, 
         lower term signals are \textbf{ignored}.
         \item \textbf{Leader Timeout ($\gamma\to\varsigma$):} If $\gamma$ does not receive a heartbeat from the $\ell$ (server failure) whilst their timer runs out, they transition to $\varsigma$ and start a new election.
@@ -118,7 +118,7 @@ Observe a cluster of four who is dealing with a split vote:
 \begin{figure}[h]
     \centering
     \includegraphics[width=.9\textwidth]{Sections/raft/split.png}
-    \caption{(1) $A$ and $C$'s timers run out first, sending out a RequestVote RPC to $B$ and $D$. (2) $B$ votes for $A$, and $D$ votes for $C$. (3) $A$ and $C$ timeout as per split vote. 
+    \caption{(1) $A$ and $C$'s timers run out first, sending out a RequestVote RPC to all other servers. (2) $B$ votes for $A$, and $D$ votes for $C$. (3) $A$ and $C$ timeout as per split vote. 
     (4) $D$ times out starting a new term, casting their Request RPC. (5) All servers respond to the higher order term. (6) $D$ becomes the Leader (Their time no longer used).}
 \end{figure}
 
@@ -129,8 +129,8 @@ Observe a cluster of four who is dealing with a split vote:
     \begin{itemize}
         \item \textbf{Leader Log Replication:} Once a $\ell$ is elected, it services command requests from the client. The $\ell$ first appends the command to its \textbf{indexed log},
         then sends an \textbf{AppendEntries RPC} in parallel to all $\beta$. Once a majority of $\beta$ have replicated the log, the command is \textbf{committed}, and thus, safe to apply to their state machine. 
-        \item \textbf{Order of Execution:} Each $\beta$ maintains a \snippet{nextIndex[]},
-        indicating the next expected log entry. The $\ell$ sends missing log entries to lagging $\beta$; otherwise, it sends empty \textbf{AppendEntries RPCs} as heartbeats.
+        \item \textbf{Order of Execution:} The $\ell$ maintains a \snippet{nextIndex[]},
+        indicating the next expected log entry for all $\beta$. The $\ell$ sends missing log entries to lagging $\beta$; otherwise, it sends empty \textbf{AppendEntries RPCs} as heartbeats.
         \item \textbf{Leader Redirection:} All $\beta$ that receive client requests, redirect the client to the $\ell$. 
     \end{itemize}
 \end{Def}
@@ -150,8 +150,8 @@ Observe a cluster of four who is dealing with a split vote:
     Given $\{\ \beta\ (\text{Server}): \gamma\ (\text{Follower})  |\ \varsigma\ (\text{Candidate}) |\ \ell\ (\text{Leader})\ \}$,\\
 
     \noindent
-    If $\ell$ fails, the new $\ell$ may be missing log entries. Let $i$ denote the last index of $\ell$'s log entry, and $j$ the last index of $\beta$s' logs.
-    If after an \textbf{AppendEntries RPC}, $\beta$'s $j\neq i$, then $\ell$ decrements $\beta$'s \textbf{nextIndex} to $(j-1)$ per call, until $j=i$.
+    If $\ell$ fails, the new $\ell$ may be missing log entries. Let $i$ denote the last index of $\ell$'s log entry, and $j$ the last index of other $\beta$s' logs.
+    If after an \textbf{AppendEntries RPC}, $\beta$'s $j\neq i$, then $\ell$ decrements $\beta$'s \textbf{nextIndex} to $(j-1)$ \textbf{per call}, until $j=i$.
     Once majority coherence is met, the log is committed.\\
 
     \noindent

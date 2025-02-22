@@ -95,7 +95,7 @@ In particular, we are concerned with the following types of failures:
 
 \subsection{Failures Model Hierarchy}
 
-As we compare failure models as extensions of each other. Here we will omit \textbf{fail-stop} as it is more of a detection mechanism.
+Here we compare failure models as extensions of each other, though we will omit \textbf{fail-stop} as it is more of a detection mechanism.
 To quickly recap:
 \begin{itemize}
     \item \textbf{Crash-Stop}: Process halts and cannot resume (undetectable).
@@ -113,9 +113,9 @@ To quickly recap:
     \end{center}
     In particular, 
     \begin{itemize}
-        \item \textbf{Crash-Stop} $\subset$ \textbf{Omission}, as a crash-stop failure is stricter, meaning a full crash, rather than a partial communication failure.
-        \item \textbf{Omission} $\subset$ \textbf{Crash-Recovery}, as during recovery the last correct state, volatile memory lost may exhibit omission-like behavior. Meaning some messages are lost, due to ``\textbf{amnesia}.''
-        \item \textbf{Crash-Recovery} $\subset$ \textbf{Byzantine}, as a process may recover and exhibit arbitrary or malicious behavior. Moreover, a Byzantine failure may mean \textbf{any type of failure}.
+        \item \textbf{Crash-Stop} $\subset$ \textbf{Omission}: A crash-stop is a full crash rather than a partial communication failure.
+        \item \textbf{Omission} $\subset$ \textbf{Crash-Recovery}: During recovering the last correct state, volatile memory lost may exhibit omission-like behavior. Meaning some messages are lost due to ``\textbf{amnesia}.''
+        \item \textbf{Crash-Recovery} $\subset$ \textbf{Byzantine}: as a process may recover and exhibit arbitrary or malicious behavior. Moreover, a Byzantine failure may be \textbf{any type of failure}.
     \end{itemize}
 \end{theo}
 
