@@ -5,23 +5,24 @@ There are other solutions, however, Raft is considered safe and easier to
 implement correctly than other solutions. First we must familiarize ourselves with the following terms:
 \begin{Def}[State Machines in Distributed Systems]
     
-    A \textbf{State Machine} processes \underline{deterministic} sequence of inputs from a \textbf{log} and saves them
+    A \textbf{State Machine} processes sequence of inputs from a \textbf{log} and saves them
     in state.
     \textbf{Replicated state machines} are implemented via \textbf{replicated logs} across multiple servers
-    utilizing a \textbf{Consensus Algorithm}, which validates log order.
+    utilizing a \textbf{Consensus Algorithm}, validating log order. Such commands need be \textbf{deterministic}.
 \end{Def}
 
-\vspace{-1em}
+\vspace{-1.5em}
 \begin{figure}[h]
     \centering
     \includegraphics[width=1\textwidth]{Sections/raft/state.png}
     \caption{High-level framework for replicated state machines.}
 \end{figure}
+
 \noindent
 In the above the \textbf{Consensus Module} communicates with other servers to serve consistent logs. 
 
 \newpage 
-
+\subsection{Procedure Outline: Heartbeats, Elections, \& Log Replication}
 \noindent
 Now to define the parts which make up a consensus algorithm:
 \begin{Def}[Consensus Algorithm Components]
@@ -57,5 +58,266 @@ In Raft, servers are given roles to manage the replication process.
         \item \textbf{Candidate}: A server that is running for leader.
         \item \textbf{Leader}: A server that is managing the replication process.
     \end{itemize}
-    \textbf{Followers are passive} and simply listen to the leader. \textbf{Clients interact with the leader}. Followers that are contacted \textbf{will redirect} the request to the leader.
+    \textbf{Followers are passive} and simply listen to the leader.
 \end{Def}
+
+\newpage 
+
+\noindent
+\begin{Def}[Raft Heartbeats]
+
+    Raft servers exchange \textbf{heartbeats} to ensure liveliness. Each server on boot is randomly assigned a timeout value.
+    After the initial timeout, a server sends a signal akin to the out-and-in beats of a heart.
+    \textbf{Out-beats} are origin signals, and \textbf{in-beats} are return signals. If a server $\beta$
+    receives an out-beat from $\ell$ before its in-beat, the $\beta$ timer resets and follows $\ell$'s beat. 
+    The leader of the beat's timer is not used.
+\end{Def}
+
+\vspace{-.5em}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=.9\textwidth]{Sections/raft/heart.png}
+    \caption{Server $A$ and $B$ exchanging heartbeats after system initialization (1).
+    Server $A$'s timer runs out first, sending the first signal to $B$ (2). $B$ has received $A$'s out-beat, and now follows them. $B$ resets
+    their timer, and returns the signal to $A$ (3).
+    $A$'s timer isn't effect, \textbf{nor is it used} whilst a leader of the beat (4).}
+\end{figure}
+
+\newpage
+
+\begin{Def}[Raft Election Terms]
+
+    Let us denote an arbitrary server as $\beta$, then $\beta$ is either of class $\gamma$ (\textbf{Follower}), $\varsigma$ (\textbf{Candidate}), or $\ell$ (\textbf{Leader}). 
+    I.e., we have types $\{\beta: \gamma\ |\ \varsigma\ |\ \ell\ \}$ The Raft Election Process involves the following:
+    \begin{enumerate}
+        \item \textbf{Timeout ($\gamma\to\varsigma$):} First, all $\beta$ initialize as $\gamma$ with a random timer (e.g., 150-300ms). 
+        Once the timer runs out, $\gamma$ transitions to $\varsigma$.
+        \item \textbf{Candidate Election ($\varsigma\to\ell$):} $\varsigma$ votes for itself and sends a \textbf{RequestVote RPC} to all $\beta$, informing them of the new term and approval request.
+        All $\beta$ vote once per term for the RPC they received first. If $\varsigma$ receives the majority vote, it transitions to $\ell$.
+        \item \textbf{Split Vote:} If all top $\varsigma$ tie in votes, all $\varsigma$ timeout, waiting for the next term. At this point, if a $\gamma$'s timer runs out before the $\varsigma$ turn-around, then $\gamma\to\varsigma$ starting the election process again.
+        \item \textbf{Behind Leaders \& Candidates ($\ell\to\gamma,\varsigma\to\gamma$):} If a $\ell$ or $\varsigma$ ever receives a heartbeat from a higher term $\beta$, it reverts to $\gamma$. Additionally, 
+        lower term signals are \textbf{ignored}.
+        \item \textbf{Leader Timeout ($\gamma\to\varsigma$):} If $\gamma$ does not receive a heartbeat from the $\ell$ (server failure) whilst their timer runs out, they transition to $\varsigma$ and start a new election.
+    \end{enumerate}
+\end{Def}
+
+\noindent
+Let's observe a cluster of three servers:
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{Sections/raft/election.png}
+    \caption{First Election after boot where $A$, $B$, and $C$ nodes in a cluster of three have been initialized. 
+    (1) $A$ times out first, becoming a Candidate and sending a RequestVote RPC to $B$ and $C$. (2) $B$ and $C$ vote for $A$.
+    (3) $A$ receives the majority vote and becomes the Leader. Now $A$'s timer is no longer used.}
+\end{figure}
+
+\newpage
+
+\noindent
+Observe a cluster of four who is dealing with a split vote:
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=.9\textwidth]{Sections/raft/split.png}
+    \caption{(1) $A$ and $C$'s timers run out first, sending out a RequestVote RPC to $B$ and $D$. (2) $B$ votes for $A$, and $D$ votes for $C$. (3) $A$ and $C$ timeout as per split vote. 
+    (4) $D$ times out starting a new term, casting their Request RPC. (5) All servers respond to the higher order term. (6) $D$ becomes the Leader (Their time no longer used).}
+\end{figure}
+
+\newpage
+\begin{Def}[Log Replication]
+
+    Given $\{\ \beta\ (\text{Server}): \gamma\ (\text{Follower})  |\ \varsigma\ (\text{Candidate}) |\ \ell\ (\text{Leader})\ \}$, the Raft Log Replication Process involves the following:
+    \begin{itemize}
+        \item \textbf{Leader Log Replication:} Once a $\ell$ is elected, it services command requests from the client. The $\ell$ first appends the command to its \textbf{indexed log},
+        then sends an \textbf{AppendEntries RPC} in parallel to all $\beta$. Once a majority of $\beta$ have replicated the log, the command is \textbf{committed}, and thus, safe to apply to their state machine. 
+        \item \textbf{Order of Execution:} Each $\beta$ maintains a \snippet{nextIndex[]},
+        indicating the next expected log entry. The $\ell$ sends missing log entries to lagging $\beta$; otherwise, it sends empty \textbf{AppendEntries RPCs} as heartbeats.
+        \item \textbf{Leader Redirection:} All $\beta$ that receive client requests, redirect the client to the $\ell$. 
+    \end{itemize}
+\end{Def}
+
+\begin{theo}[Log Matching Property]
+
+    \label{theo:log}
+    If two entries in different logs have the same index and term, then:
+    \begin{itemize}
+        \item They store the same command.
+        \item All proceeding entries are the same.
+    \end{itemize}
+\end{theo}
+
+\begin{Def}[Log Correction]
+
+    Given $\{\ \beta\ (\text{Server}): \gamma\ (\text{Follower})  |\ \varsigma\ (\text{Candidate}) |\ \ell\ (\text{Leader})\ \}$,\\
+
+    \noindent
+    If $\ell$ fails, the new $\ell$ may be missing log entries. Let $i$ denote the last index of $\ell$'s log entry, and $j$ the last index of $\beta$s' logs.
+    If after an \textbf{AppendEntries RPC}, $\beta$'s $j\neq i$, then $\ell$ decrements $\beta$'s \textbf{nextIndex} to $(j-1)$ per call, until $j=i$.
+    Once majority coherence is met, the log is committed.\\
+
+    \noindent
+    This holds as we assume the preceding Theorem (\ref{theo:log}) is true. This is to say, the leader has a---\textbf{Append Only Property}---that it does not modify its own entries, but \textbf{only} appends new ones.
+\end{Def}
+
+\vspace{-.5em}
+\begin{Note} 
+
+    \textbf{Note:} A slight optimization for log correction, is for $\gamma$ to tell $\ell$ the conflicting term and its first index.
+    With that, $\ell$ can skip the log entries of such term. Though this isn't necessary as in real world applications, these conflicts are 
+    infrequent.
+\end{Note}
+
+\noindent
+
+
+\newpage 
+
+\subsection{Safety: Restricting Leader Election}
+\noindent
+Since previously discussed, a new leader may be missing log entries, from which they tell other servers to discard mismatches. 
+This can become problematic when the previous leader and other servers have committed several entries.\\
+
+\noindent
+To fix this, we introduce constraints on leader election:
+
+\begin{Def}[Leader Completeness]
+
+    All proceeding leaders must have all committed entries of the previous leader.
+\end{Def}
+
+\begin{Def}[Leader Election Restriction]
+
+    Given $\{\ \beta\ (\text{Server}): \gamma\ (\text{Follower})  |\ \varsigma\ (\text{Candidate}) |\ \ell\ (\text{Leader})\ \}$,\\
+    New $\ell$ must demonstrate \textbf{Leader Completeness}. To ensure this, $\beta$ upon receiving a \textbf{RequestVote RPC} from $\varsigma$ checks:
+    \begin{itemize}
+        \item If $\varsigma$'s last log is from a lower term, the vote is \textbf{rejected}.
+        \item If $\varsigma$'s last log is from the same term, but shorter, the vote is \textbf{rejected}.
+        \item If $\varsigma$'s log is \textbf{at least} as up-to-date as the voter, the vote is \textbf{accepted}.
+    \end{itemize}
+\end{Def}
+
+\begin{theo}[Present Term Commitment]
+
+    Leaders cannot assume previous term entries are committed, as they may not have been fully replicated.
+    Hence they only commit entries from their term, and by the \textbf{Log Matching Property} (\ref{theo:log}), previous entries are also committed.
+\end{theo}
+
+\subsection{Raft Algorithm Paper}
+\noindent
+Here we have provided the general outline for the Raft Algorithm. For a more detailed explanation, please refer to the original paper, which includes proofs:\\
+• \href{https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf}{https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf}.\\
+And the extended version here:\\
+• \href{https://raft.github.io/raft.pdf}{https://raft.github.io/raft.pdf}\\
+And these two websites which offer interactive visualizations of the Raft Algorithm:
+\begin{itemize}
+    \item \href{http://thesecretlivesofdata.com/raft/}{http://thesecretlivesofdata.com/raft/}
+    \item \href{https://raft.github.io/}{https://raft.github.io/}
+\end{itemize}
+The \underline{\textbf{next page}} will include the schematics for the Raft Algorithm's \textbf{State}, \textbf{AppendEntries RPC}, and \textbf{RequestVote RPC} \cite{184040}.
+\newpage
+    \resizebox{\textwidth}{!}{%
+    \renewcommand{\arraystretch}{1.6} % Increased padding
+    \begin{tabular}{|l|p{9cm}|}
+        \hline
+        \rowcolor{Black}\multicolumn{2}{|c|}{\textcolor{white}{\textbf{STATE}}}\\
+        \hline
+        \rowcolor{OliveGreen!10}\multicolumn{2}{|c|}{\textbf{Persistent state on all servers (stored on stable storage before responding to RPCs)}} \\
+        \hline
+        \textbf{currentTerm} & Latest term server has seen (initialized to 0 on first boot, increases monotonically). \\
+        \hline
+        \textbf{votedFor} & Candidate ID that received vote in current term (or null if none). \\
+        \hline
+        \textbf{log[]} & Log entries; each entry contains a command for the state machine and the term when it was received by the leader (first index is 1). \\
+        \hline
+        \rowcolor{OliveGreen!10}\multicolumn{2}{|c|}{\textbf{Volatile state on all servers}} \\
+        \hline
+        \textbf{commitIndex} & Index of the highest log entry known to be committed (initialized to 0, increases monotonically). \\
+        \hline
+        \textbf{lastApplied} & Index of highest log entry applied to the state machine (initialized to 0, increases monotonically). \\
+        \hline
+        \rowcolor{OliveGreen!10}\multicolumn{2}{|c|}{\textbf{Volatile state on leaders (Reinitialized after election)}} \\
+        \hline
+        \textbf{nextIndex[]} & For each server, index of the next log entry to send to that server (initialized to leader last log index + 1). \\
+        \hline
+        \textbf{matchIndex[]} & For each server, index of highest log entry known to be replicated on server (initialized to 0, increases monotonically). \\
+        \hline
+        \rowcolor{Black} \multicolumn{2}{|c|}{\textcolor{white}{\textbf{RequestVote RPC}}} \\
+        \hline
+        \rowcolor{OliveGreen!10}\multicolumn{2}{|l|}{\textbf{Invoked by candidates to gather votes.}} \\
+        \hline
+        \textbf{term} & Candidate's term. \\
+        \hline
+        \textbf{candidateId} & Candidate requesting vote. \\
+        \hline
+        \textbf{lastLogIndex} & Index of candidate's last log entry. \\
+        \hline
+        \textbf{lastLogTerm} & Term of candidate's last log entry. \\
+        \hline
+        \rowcolor{OliveGreen!10} \textbf{Results} &  \\
+        \hline
+        \textbf{term} & Current term, for candidate to update itself. \\
+        \hline
+        \textbf{voteGranted} & \textbf{true} means candidate received vote. \\
+        \hline
+        \rowcolor{OliveGreen!10} \textbf{Receiver Implementation} & \\
+        \hline
+        \multicolumn{2}{|p{9cm}|}{%
+            \parbox{11cm}{%
+                \begin{enumerate}
+                    \item Reply \textbf{false} if \textbf{term < currentTerm}.
+                    \item If \textbf{votedFor} is \textbf{null} or \textbf{candidateId}, and candidate's log is at least as up-to-date as receiver's log, grant vote.
+                \end{enumerate}
+            }
+        } \\
+        \hline
+    
+    \end{tabular}
+    }
+\newpage 
+
+\resizebox{\textwidth}{!}{%
+    
+    \renewcommand{\arraystretch}{1.6} % Increased padding
+    \begin{tabular}{|l|p{9cm}|}
+        \hline
+        \rowcolor{Black} \multicolumn{2}{|c|}{\textcolor{white}{\textbf{AppendEntries RPC}}} \\
+        \hline
+        \rowcolor{OliveGreen!10}\multicolumn{2}{|l|}{\textbf{Invoked by leader to replicate log entries; also used as heartbeat.}} \\
+        \hline
+        \rowcolor{OliveGreen!10} \textbf{Arguments} & \hspace{12em}\textbf{Description} \\
+        \hline
+        \textbf{term} & Leader's term. \\
+        \hline
+        \textbf{leaderId} & Allows follower to redirect clients. \\
+        \hline
+        \textbf{prevLogIndex} & Index of log entry immediately preceding new ones. \\
+        \hline
+        \textbf{prevLogTerm} & Term of \textbf{prevLogIndex}, entry. \\
+        \hline
+        \textbf{entries[]} & Log entries to store (empty for heartbeat; may send more than one for efficiency). \\
+        \hline
+        \textbf{leaderCommit} & Leader's \textbf{commitIndex}. \\
+        \hline
+        \rowcolor{OliveGreen!10} \textbf{Results} &  \\
+        \hline
+        \textbf{term} & Current term, for leader to update itself. \\
+        \hline
+        \textbf{success} & \textbf{true} if follower contained entry matching \textbf{prevLogIndex} and \textbf{prevLogTerm}. \\
+        \hline
+        \rowcolor{OliveGreen!10} \textbf{Receiver Implementation} & \\
+        \hline
+        \multicolumn{2}{|p{10cm}|}{%
+            \parbox{11cm}{%
+                \begin{enumerate}
+                    \item Reply \textbf{false} if \textbf{term} $<$ \textbf{currentTerm}.
+                    \item Reply \textbf{false} if log doesn't contain an entry at \textbf{prevLogIndex} whose term matches \textbf{prevLogTerm}.
+                    \item If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it.
+                    \item Append any new entries not already in the log.
+                    \item If \textbf{leaderCommit} $>$ \textbf{commitIndex}, set \textbf{commitIndex} $=\min(\text{\textbf{leaderCommit}}, \text{index of last new entry})$.
+                \end{enumerate}
+            }
+        } \\
+        \hline
+    \end{tabular}
+}
+
+
