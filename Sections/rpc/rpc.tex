@@ -47,23 +47,21 @@ To illustrate the RPC call stack, observe the following diagram:
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.55\textwidth]{Sections/rpc/rpc_stack.png}
-    \caption{Client system $A$ making a request to Server system $B$ over RPC.}
+    \caption{Client system $A$ making a request to Server system $B$ over RPC. This of which is 
+    reciprocated by $B$ to return the result.}
     \label{fig:rpc_stack}
 \end{figure}
-
-\noindent
-$B$ runs through the stub and RPC library again to reply to $A$. In terms of time it might look like:
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.63\textwidth]{Sections/rpc/call_time.png}
-    \caption{RPC call stack over time.}
+    
+    \vspace{1em}
+    \caption{RPC call stack over time. Once the client makes the call it waits for the server to process the request and return the result. The programmer need not worry beyond sending the request and receiving the response.
+    The RPC deals with all the heavy work of facilitating the communication.
+    }
     \label{fig:rpc_time}
 \end{figure}
-
-\noindent 
-Once the client makes the call it waits for the server to process the request and return the result. The programmer need not worry beyond sending the request and receiving the response.
-The RPC deals with all the heavy work of facilitating the communication.
 
 \newpage 
 
@@ -75,7 +73,7 @@ Now to discuss what marshaling and unmarshaling are:
     This conversion is known as \textbf{serialization}. This is done as the network can only transmit bytes\\
     
     \noindent
-    \textbf{Unmarshaling} is the process of converting the byte stream into the original object called \textbf{deserialization}. 
+    \textbf{Unmarshaling} is the process of converting the byte stream into the original, object called \textbf{deserialization}. 
     This allows the server to process the request.
 \end{Def}
 
@@ -148,8 +146,7 @@ Now to discuss briefly how a basic TCP connection is made:
     
     \noindent
     After the three-way handshake, the connection is established and the client and server can communicate exchanging SYN and ACK data-packets.
-    To end the connection another three-way handshake takes placed, where instead of SYN, \textbf{FIN (finish)} is used.
-    
+    To end the connection another three-way handshake takes placed, where instead SYN, \textbf{FIN (finish)} is used.
 \end{Def}
 
 \noindent
@@ -168,14 +165,16 @@ Below we illustrate a simple TCP connection:
 \begin{figure}[h]
     \centering
     \includegraphics[width=1\textwidth]{Sections/rpc/sync.png}
-    \caption{TCP Handshake, data transfer, and session termination.}
+
+    \vspace{1em}
+    \caption{TCP Handshake, data transfer, and session termination.
+    Here the client (Device A) begins a three-way handshake with the server (Device B) to establish a connection. Both start with 
+    arbitrary sequence numbers for security purposes. With each packet received the two devices increment their sequence numbers accordingly.\\
+    }
     \label{fig:tcp}
 \end{figure}
 
-\noindent
-Here the client (Device A) begins a three-way handshake with the server (Device B) to establish a connection. Both start with 
-arbitrary sequence numbers for security purposes. With each packet received the two devices increment their sequence numbers accordingly.\\
-
+\vspace{-1em}
 \begin{Tip} If there still resides curiosity for the networking aspect of RPCs, consider reading our other notes:
     \href{https://github.com/Concise-Works/Cyber-Security/blob/main/main.pdf}{https://github.com/Concise-Works/Cyber-Security/blob/main/main.pdf}
 \end{Tip}

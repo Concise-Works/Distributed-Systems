@@ -1,4 +1,4 @@
-\section{Replication Consensus Algorithm: Raft}
+\section{Raft: Consensus Replication}
 As we've discussed so far, replication consistency is crucial and a 
 difficult task. The next strategy, \textbf{Raft}, deals with such problem.
 There are other solutions, however, Raft is considered safe and easier to 
@@ -201,8 +201,102 @@ To fix this, we introduce constraints on leader election:
     Hence they only commit entries from their term, and by the \textbf{Log Matching Property} (\ref{theo:log}), previous entries are also committed.
 \end{theo}
 
-\subsection{Raft Algorithm Paper}
+\begin{theo}[Ensuring a Leader Through Timing]
+
+    To ensure that there is always a leader in the face of probabilistic timing, these 
+    requirements should be satisfied:
+    $$
+    broadcastTime \ll electionTimeout \ll MTBF
+    $$
+    \noindent
+    $broadcastTime$ measures the average time of heartbeat reciprocation for a server (e.g., .5ms-20ms).
+    Then $electionTimeout$, the randomly assigned timeout times for each server (e.g, 10ms-500ms), and $MTBF$, the
+    average time between failures of a server (e.g., several months or more).
+\end{theo}
+
+\newpage
+\subsection{Cluster Reconfiguration (Adding, Removing, and Replacing Servers)}
 \noindent
+Cluster reconfiguration involves adding, removing, replacing servers, or adjusting routines:
+
+\begin{Def}[Stop and Restart \& Pause and Resume]
+
+    \begin{itemize}
+        \item \textbf{Stop and Restart:} Immediately halt operations, save state, reconfigure, and restart.
+        \item \textbf{Pause and Resume:} Pause executing incoming requests and instead save them in a buffer, finish current processes,
+        reconfigure, restart and resume. 
+    \end{itemize}
+\end{Def}
+
+\noindent
+Raft takes a two phase approach to reconfigure the cluster:
+\begin{Def}[Raft Joint Consensus Reconfiguration (Part 1)]
+
+    Joint consensus allows for a cluster to service requests while reconfiguring.
+    It does this via a transition state, which is a combination of the old and new configurations (Joint consensus).\\
+
+    \noindent
+    \textbf{Reconfiguration:} Once a leader receives a configurations request to swap from $C_{old}$ to $C_{new}$, it appends $C_{old,new}$ to its logs, proceeding
+    as follows:
+    \begin{itemize}
+        \item \textbf{Phase 1:}
+        \begin{enumerate}
+            \item Propagate $C_{old,new}$ to all servers.
+            \item Servers receiving new configurations (e.g., $C_{old,new}$), acknowledge it (\textbf{regardless} if it's committed or not).
+            \item A leader crashing leads to reelections under $C_{old}$ or $C_{old,new}$ (committed or not).
+            \item Once $C_{old,new}$ is committed, the leader appends $C_{new}$ to its log and replicates it.
+        \end{enumerate}
+        \item \textbf{Phase 2:} 
+        \begin{enumerate}
+            \item $C_{new}$ is committed and live, any server not under $C_{new}$ can be shut down.
+            \item The leader who committed $C_{new}$ becomes a follower to account for \textbf{Deletion}.
+        \end{enumerate}
+        
+        
+    \end{itemize}
+
+    \noindent
+    \textbf{Addition:} New Servers enter with \textbf{empty logs} and added in the following manner:
+    \begin{enumerate}
+        \item The leader upon receiving $C_{new}$ is notified of new server existence.
+        \item New servers \textbf{cannot vote}, but only receive logs (as to avoid splitting the cluster).
+        \item Once new servers are synchronized in logs, $C_{old,new}$ may be committed.
+        \item $C_{old,new}$ clusters require the majority vote from \textbf{both old and new servers}.
+    \end{enumerate}
+
+    \noindent
+    \textbf{Deletion:} To remove servers, they are excluded in the $C_{new}$ configuration; \textbf{With the only exception} that leaders who do not exist in $C_{new}$
+    \underline{may continue to manage the cluster} until $C_{new}$ is committed.
+    
+\end{Def}
+\newpage
+
+\noindent
+Though we must address the situation where servers outside of $C_{new}$ try to 
+cast votes:
+\begin{Def}[Raft Joint Consensus Reconfiguration (Part 2)]
+
+    Since Raft processes requests asynchronously, during the transition to the new configuration 
+    from $C_{old,new}$ to $C_{new}$, the following could happen:
+    \begin{itemize}
+        \item A server not yet notified of the new configuration may not know it has been removed from it.
+        Hence, it may not receive heartbeats and attempt to start a new election.
+        \item A server with some other configuration comes online and begins to send out RPCs to the cluster.
+    \end{itemize}
+
+    \noindent
+    In any such case of unwanted votes, Raft enacts the following protocol to ensure safety:
+    \begin{itemize}
+        \item \textbf{Leader Liveliness:} If servers within $C_{new}$ believe they have a leader, they ignore votes \underline{(regardless of higher order terms).}
+        \item \textbf{Majority Rule:} Even if an election occurs, $C_{new}$ members will vote amongst themselves, for which servers outside of $C_{new}$ will never win.
+    \end{itemize}
+
+    \noindent
+    Ideally, we would like to immediately terminate servers that are removed, but this may not always be possible or practical.
+\end{Def}
+
+\newpage
+\subsection{Raft Algorithm Paper}
 Here we have provided the general outline for the Raft Algorithm. For a more detailed explanation, please refer to the original paper, which includes proofs:\\
 • \href{https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf}{https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf}.\\
 And the extended version here:\\
