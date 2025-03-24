@@ -214,6 +214,62 @@ To fix this, we introduce constraints on leader election:
     average time between failures of a server (e.g., several months or more).
 \end{theo}
 
+\newpage 
+
+\subsection{AppendEntries, State, and RequestVote RPC Schema}
+
+\noindent
+The next two pages are a summary of the Raft RPCs \textbf{AppendEntries}, \textbf{RequestVote}, and \textbf{state} for implementation:\\
+
+\vspace{2em}
+
+\noindent
+\resizebox{\textwidth}{!}{%
+    
+    \renewcommand{\arraystretch}{1.6} % Increased padding
+    \begin{tabular}{|l|p{9cm}|}
+        \hline
+        \rowcolor{Black} \multicolumn{2}{|c|}{\textcolor{white}{\textbf{AppendEntries RPC}}} \\
+        \hline
+        \rowcolor{OliveGreen!10}\multicolumn{2}{|l|}{\textbf{Invoked by leader to replicate log entries; also used as heartbeat.}} \\
+        \hline
+        \rowcolor{OliveGreen!10} \textbf{Arguments} & \hspace{12em}\textbf{Description} \\
+        \hline
+        \textbf{term} & Leader's term. \\
+        \hline
+        \textbf{leaderId} & Allows follower to redirect clients. \\
+        \hline
+        \textbf{prevLogIndex} & Index of log entry immediately preceding new ones. \\
+        \hline
+        \textbf{prevLogTerm} & Term of \textbf{prevLogIndex}, entry. \\
+        \hline
+        \textbf{entries[]} & Log entries to store (empty for heartbeat; may send more than one for efficiency). \\
+        \hline
+        \textbf{leaderCommit} & Leader's \textbf{commitIndex}. \\
+        \hline
+        \rowcolor{OliveGreen!10} \textbf{Results} &  \\
+        \hline
+        \textbf{term} & Current term, for leader to update itself. \\
+        \hline
+        \textbf{success} & \textbf{true} if follower contained entry matching \textbf{prevLogIndex} and \textbf{prevLogTerm}. \\
+        \hline
+        \rowcolor{OliveGreen!10} \textbf{Receiver Implementation} & \\
+        \hline
+        \multicolumn{2}{|p{10cm}|}{%
+            \parbox{11cm}{%
+                \begin{enumerate}
+                    \item Reply \textbf{false} if \textbf{term} $<$ \textbf{currentTerm}.
+                    \item Reply \textbf{false} if log doesn't contain an entry at \textbf{prevLogIndex} whose term matches \textbf{prevLogTerm}.
+                    \item If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it.
+                    \item Append any new entries not already in the log.
+                    \item If \textbf{leaderCommit} $>$ \textbf{commitIndex}, set \textbf{commitIndex} $=\min(\text{\textbf{leaderCommit}}, \text{index of last new entry})$.
+                \end{enumerate}
+            }
+        } \\
+        \hline
+    \end{tabular}
+}
+
 \newpage
     \resizebox{\textwidth}{!}{%
     \renewcommand{\arraystretch}{1.6} % Increased padding
@@ -273,60 +329,11 @@ To fix this, we introduce constraints on leader election:
     
     \end{tabular}
     }
-\newpage 
-
-\resizebox{\textwidth}{!}{%
-    
-    \renewcommand{\arraystretch}{1.6} % Increased padding
-    \begin{tabular}{|l|p{9cm}|}
-        \hline
-        \rowcolor{Black} \multicolumn{2}{|c|}{\textcolor{white}{\textbf{AppendEntries RPC}}} \\
-        \hline
-        \rowcolor{OliveGreen!10}\multicolumn{2}{|l|}{\textbf{Invoked by leader to replicate log entries; also used as heartbeat.}} \\
-        \hline
-        \rowcolor{OliveGreen!10} \textbf{Arguments} & \hspace{12em}\textbf{Description} \\
-        \hline
-        \textbf{term} & Leader's term. \\
-        \hline
-        \textbf{leaderId} & Allows follower to redirect clients. \\
-        \hline
-        \textbf{prevLogIndex} & Index of log entry immediately preceding new ones. \\
-        \hline
-        \textbf{prevLogTerm} & Term of \textbf{prevLogIndex}, entry. \\
-        \hline
-        \textbf{entries[]} & Log entries to store (empty for heartbeat; may send more than one for efficiency). \\
-        \hline
-        \textbf{leaderCommit} & Leader's \textbf{commitIndex}. \\
-        \hline
-        \rowcolor{OliveGreen!10} \textbf{Results} &  \\
-        \hline
-        \textbf{term} & Current term, for leader to update itself. \\
-        \hline
-        \textbf{success} & \textbf{true} if follower contained entry matching \textbf{prevLogIndex} and \textbf{prevLogTerm}. \\
-        \hline
-        \rowcolor{OliveGreen!10} \textbf{Receiver Implementation} & \\
-        \hline
-        \multicolumn{2}{|p{10cm}|}{%
-            \parbox{11cm}{%
-                \begin{enumerate}
-                    \item Reply \textbf{false} if \textbf{term} $<$ \textbf{currentTerm}.
-                    \item Reply \textbf{false} if log doesn't contain an entry at \textbf{prevLogIndex} whose term matches \textbf{prevLogTerm}.
-                    \item If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it.
-                    \item Append any new entries not already in the log.
-                    \item If \textbf{leaderCommit} $>$ \textbf{commitIndex}, set \textbf{commitIndex} $=\min(\text{\textbf{leaderCommit}}, \text{index of last new entry})$.
-                \end{enumerate}
-            }
-        } \\
-        \hline
-    \end{tabular}
-}
-
-
 
 \newpage
 \subsection{Cluster Reconfiguration (Adding, Removing, and Replacing Servers)}
 \noindent
-Cluster reconfiguration involves adding, removing, replacing servers, or adjusting routines:
+Cluster reconfiguration involves adding, removing, and replacing servers, or adjusting routines:
 
 \begin{Def}[Stop and Restart \& Pause and Resume]
 
@@ -352,7 +359,7 @@ Raft takes a two phase approach to reconfigure the cluster:
         \begin{enumerate}
             \item Propagate $C_{old,new}$ to all servers.
             \item Servers receiving new configurations (e.g., $C_{old,new}$), acknowledge it (\textbf{regardless} if it's committed or not).
-            \item A leader crashing leads to reelections under $C_{old}$ or $C_{old,new}$ (committed or not).
+            \item A leader crashing leads to reelections under $C_{old}$ or $C_{old,new}$.
             \item Once $C_{old,new}$ is committed, the leader appends $C_{new}$ to its log and replicates it.
         \end{enumerate}
         \item \textbf{Phase 2:} 
@@ -365,18 +372,17 @@ Raft takes a two phase approach to reconfigure the cluster:
     \end{itemize}
 
     \noindent
-    \textbf{Addition:} New Servers enter with \textbf{empty logs} and added in the following manner:
+    \textbf{Deletion:} To remove servers, they are excluded in the $C_{new}$ configuration; \textbf{With the only exception} that leaders who do not exist in $C_{new}$
+    \underline{may continue to manage the cluster} until $C_{new}$ is committed.\\
+    
+    \noindent
+    \textbf{Addition:} New Servers enter with \textbf{empty logs} and are added in the following manner:
     \begin{enumerate}
-        \item The leader upon receiving $C_{new}$ is notified of new server existence.
+        \item The leader upon receiving the $C_{new}$ request is notified of new server existence.
         \item New servers \textbf{cannot vote}, but only receive logs (as to avoid splitting the cluster).
         \item Once new servers are synchronized in logs, $C_{old,new}$ may be committed.
         \item $C_{old,new}$ clusters require the majority vote from \textbf{both old and new servers}.
     \end{enumerate}
-
-    \noindent
-    \textbf{Deletion:} To remove servers, they are excluded in the $C_{new}$ configuration; \textbf{With the only exception} that leaders who do not exist in $C_{new}$
-    \underline{may continue to manage the cluster} until $C_{new}$ is committed.
-    
 \end{Def}
 \newpage
 
@@ -412,12 +418,12 @@ cast votes:
 In finite systems, logs cannot expand without bound. So as to clean log entries without losing state consensus, snapshotting is employed.
 \begin{Def}[Raft - Log Compaction \& Snapshots]
 
-    Raft compacts logs via state snapshots (\ref{def:snapshot}). Servers independently take snapshots, and \textbf{are not} initiated by the leader.
+    Raft compacts logs via state snapshots (\ref{def:snapshot}). Servers independently take snapshots, and \textbf{are} \underline{\textbf{not} initiated by the leader.}
     Snapshots employ the following protocol:
     \begin{enumerate}
-        \item Trigger snapshot when logs reach a fixed size in \textbf{bytes} or time (e.g., see below tip).
+        \item Trigger snapshots when logs reach a fixed size in \textbf{bytes} or time (e.g., see below tip).
         \item The snapshot replaces \textbf{committed} log entries and retains entries yet to be committed.
-        \item The snapshot includes: last committed log index and term, and machine state\\
+        \item The snapshot includes last committed log index, term of last index, and machine state\\
         (e.g., key-value pairs).
     \end{enumerate}
 \end{Def}
@@ -432,9 +438,9 @@ In finite systems, logs cannot expand without bound. So as to clean log entries 
 \noindent
 \begin{Proof}[Raft - Log Compaction \& Snapshots]
 
-    Leader initiated snapshots may overcomplicate its RPC, and or make costly use of
+    Leader initiated snapshots may overcomplicate its RPC and or make costly use of
     bandwidth. Since the leader has already vetted committed 
-    log entries, it is safe to assume that the resulting independent snapshot is also safe. 
+    log entries, it is safe to assume that the resulting independent snapshots consisting of committed logs---are also safe. 
 \end{Proof}
 
 \noindent
@@ -449,8 +455,8 @@ Though it's not ideal to send an snapshots over the network, in some cases we mi
 
     \noindent
     In such cases the leader will send a \textbf{InstallSnapshot RPC}.
-    Such RPC includes the last log index. The server will discard all entries before the last 
-    included index, and retain the rest.
+    Such RPC includes the last log index. The receiver discards all its logs before the last 
+    log index, and retains the rest.
 \end{Def}
 
 \noindent
@@ -466,11 +472,11 @@ Copying the entire dataset is costly, as to avoid this, Raft recommends a lazy s
 \begin{Def}[Raft - Linearizing Client Interactions w/ IDs]
 
     \noindent
-    Clients first connect to a random server, and are redirected if not the leader server redirects them.
-    Crashes timeout clients, and clients retry with another server. Raft 
+    Clients first connect to a random server, and are redirected if not the leader server.
+    Server crashes timeout clients, for which clients retry their requests with another server. Raft 
     supports \textbf{linearizable} semantics in the following way:
     \begin{itemize}
-        \item \textbf{Command IDs:} Each command is assigned unique serial numbers. Each server maintains the last processed command ID and responce for 
+        \item \textbf{Command IDs:} Each command is assigned unique serial numbers. Each server maintains the last processed command ID and associated response for 
         each client.
         \item \textbf{Syncing Leader Logs:} To avoid stale leader logs, two precautionary are taken: 
         \begin{enumerate}
@@ -481,6 +487,11 @@ Copying the entire dataset is costly, as to avoid this, Raft recommends a lazy s
 \end{Def}
     
 \newpage
+
+\subsection{InstallSnapshot RPC Schema}
+
+\noindent
+Below is a summary of the Raft RPC \textbf{InstallSnapshot} for implementation:\\
 
 \noindent
 \resizebox{\textwidth}{!}{%
@@ -532,10 +543,11 @@ Copying the entire dataset is costly, as to avoid this, Raft recommends a lazy s
 }
 
 \subsection{Raft Algorithm Paper}
-Below is the original source with additional proofs and explanations \cite{184040}:\\
-• \href{https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf}{https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf}.\\
-And the extended version here:\\
-• \href{https://raft.github.io/raft.pdf}{https://raft.github.io/raft.pdf}\\
+Below is the original source with additional proofs and explanations \cite{184040}:
+\begin{itemize}
+    \item \href{https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf}{https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf}
+    \item \textbf{Extended Version:} \href{https://raft.github.io/raft.pdf}{https://raft.github.io/raft.pdf}
+\end{itemize}
 
 \noindent
 And these two websites which offer interactive visualizations of the Raft Algorithm:
