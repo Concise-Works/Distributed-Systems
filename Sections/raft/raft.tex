@@ -430,16 +430,15 @@ In finite systems, logs cannot expand without bound. So as to clean log entries 
 \newpage 
 
 \noindent
-This works for the following reason:
 \begin{Proof}[Raft - Log Compaction \& Snapshots]
 
-    Having the leader initiate snapshots may overcomplicated its role, RPCs, and or interfere with 
-    bandwidth by sending state over the network. Since the leader has already vetted committed 
-    log entries, it is safe to assume that resulting independent snapshot consisting of such entries are also safe. 
+    Leader initiated snapshots may overcomplicate its RPC, and or make costly use of
+    bandwidth. Since the leader has already vetted committed 
+    log entries, it is safe to assume that the resulting independent snapshot is also safe. 
 \end{Proof}
 
 \noindent
-Though it's not ideal to send an snapshots over the network, in some cases it might have to.
+Though it's not ideal to send an snapshots over the network, in some cases we might have to.
 \begin{Def}[Raft Resynchronization (InstallSnapshot RPC)]
 
     There are two cases where a snapshot may be sent:
@@ -457,11 +456,28 @@ Though it's not ideal to send an snapshots over the network, in some cases it mi
 \noindent
 Copying the entire dataset is costly, as to avoid this, Raft recommends a lazy snapshotting approach:
 
-\begin{Def}[Raft Snapshots - Copy-on-Write (CoW)]
+\begin{Def}[Copy-on-Write (CoW)]
 
     \noindent
-    When snapshots occur, the server marks existing data as shared between the snapshot and the live state.
+    Servers mark existing data as shared between a snapshot and live state.
     Only when a write (modification) touches shared data, does the server copy to preserve the snapshot.
+\end{Def}
+
+\begin{Def}[Raft - Linearizing Client Interactions w/ IDs]
+
+    \noindent
+    Clients first connect to a random server, and are redirected if not the leader server redirects them.
+    Crashes timeout clients, and clients retry with another server. Raft 
+    supports \textbf{linearizable} semantics in the following way:
+    \begin{itemize}
+        \item \textbf{Command IDs:} Each command is assigned unique serial numbers. Each server maintains the last processed command ID and responce for 
+        each client.
+        \item \textbf{Syncing Leader Logs:} To avoid stale leader logs, two precautionary are taken: 
+        \begin{enumerate}
+            \item At the beginning of each term, the leader replicates a dummy \textit{no-op} command log and waits for it to be committed.
+            \item The leader sends responses only after exchanging heartbeats with the majority.
+        \end{enumerate}
+    \end{itemize}
 \end{Def}
     
 \newpage
@@ -515,18 +531,16 @@ Copying the entire dataset is costly, as to avoid this, Raft recommends a lazy s
     \end{tabular}
 }
 
-
-
-\newpage
 \subsection{Raft Algorithm Paper}
-Here we have provided the general outline for the Raft Algorithm. For a more detailed explanation, please refer to the original paper, which includes proofs:\\
+Below is the original source with additional proofs and explanations \cite{184040}:\\
 • \href{https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf}{https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf}.\\
 And the extended version here:\\
 • \href{https://raft.github.io/raft.pdf}{https://raft.github.io/raft.pdf}\\
+
+\noindent
 And these two websites which offer interactive visualizations of the Raft Algorithm:
 \begin{itemize}
     \item \href{http://thesecretlivesofdata.com/raft/}{http://thesecretlivesofdata.com/raft/}
     \item \href{https://raft.github.io/}{https://raft.github.io/}
 \end{itemize}
-The \underline{\textbf{next page}} will include the schematics for the Raft Algorithm's \textbf{State}, \textbf{AppendEntries RPC}, and \textbf{RequestVote RPC} \cite{184040}.
 

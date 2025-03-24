@@ -107,9 +107,8 @@ To handle network unreliability, we'll first consider two failure models:
 \begin{Def}[At-least-once \& At-most-once]
 
     \begin{itemize}
-        \item \textbf{At-least-once:} Regardless of failures, make the RPC call until the server responds. Works for read-only operations, otherwise, a strategy to handle duplicate requests is needed.
-        \item \textbf{At-most-once:} Ensure the RPC call is made only once, even if the server fails to respond. This is done by having a unique identifier for each request. Each subsequent request 
-        tells the server which calls have already been processed.
+        \item \textbf{At-least-once:} Ensures that the RPC call is delivered to the server at least once, regardless of failures. Though additional methods like IDs to ensure duplicated calls are handled server-side.
+        \item \textbf{At-most-once:} Ensures that the RPC call is delivered at most once. So even if the call fails, it won't be retried. So messages may be lost if the server fails to receive them.
     \end{itemize}
 \end{Def}
 
