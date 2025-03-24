@@ -204,7 +204,7 @@ To fix this, we introduce constraints on leader election:
 \begin{theo}[Ensuring a Leader Through Timing]
 
     To ensure that there is always a leader in the face of probabilistic timing, these 
-    requirements should be satisfied:
+    magnitude requirements should be satisfied:
     $$
     broadcastTime \ll electionTimeout \ll MTBF
     $$
@@ -214,99 +214,6 @@ To fix this, we introduce constraints on leader election:
     average time between failures of a server (e.g., several months or more).
 \end{theo}
 
-\newpage
-\subsection{Cluster Reconfiguration (Adding, Removing, and Replacing Servers)}
-\noindent
-Cluster reconfiguration involves adding, removing, replacing servers, or adjusting routines:
-
-\begin{Def}[Stop and Restart \& Pause and Resume]
-
-    \begin{itemize}
-        \item \textbf{Stop and Restart:} Immediately halt operations, save state, reconfigure, and restart.
-        \item \textbf{Pause and Resume:} Pause executing incoming requests and instead save them in a buffer, finish current processes,
-        reconfigure, restart and resume. 
-    \end{itemize}
-\end{Def}
-
-\noindent
-Raft takes a two phase approach to reconfigure the cluster:
-\begin{Def}[Raft Joint Consensus Reconfiguration (Part 1)]
-
-    Joint consensus allows for a cluster to service requests while reconfiguring.
-    It does this via a transition state, which is a combination of the old and new configurations (Joint consensus).\\
-
-    \noindent
-    \textbf{Reconfiguration:} Once a leader receives a configurations request to swap from $C_{old}$ to $C_{new}$, it appends $C_{old,new}$ to its logs, proceeding
-    as follows:
-    \begin{itemize}
-        \item \textbf{Phase 1:}
-        \begin{enumerate}
-            \item Propagate $C_{old,new}$ to all servers.
-            \item Servers receiving new configurations (e.g., $C_{old,new}$), acknowledge it (\textbf{regardless} if it's committed or not).
-            \item A leader crashing leads to reelections under $C_{old}$ or $C_{old,new}$ (committed or not).
-            \item Once $C_{old,new}$ is committed, the leader appends $C_{new}$ to its log and replicates it.
-        \end{enumerate}
-        \item \textbf{Phase 2:} 
-        \begin{enumerate}
-            \item $C_{new}$ is committed and live, any server not under $C_{new}$ can be shut down.
-            \item The leader who committed $C_{new}$ becomes a follower to account for \textbf{Deletion}.
-        \end{enumerate}
-        
-        
-    \end{itemize}
-
-    \noindent
-    \textbf{Addition:} New Servers enter with \textbf{empty logs} and added in the following manner:
-    \begin{enumerate}
-        \item The leader upon receiving $C_{new}$ is notified of new server existence.
-        \item New servers \textbf{cannot vote}, but only receive logs (as to avoid splitting the cluster).
-        \item Once new servers are synchronized in logs, $C_{old,new}$ may be committed.
-        \item $C_{old,new}$ clusters require the majority vote from \textbf{both old and new servers}.
-    \end{enumerate}
-
-    \noindent
-    \textbf{Deletion:} To remove servers, they are excluded in the $C_{new}$ configuration; \textbf{With the only exception} that leaders who do not exist in $C_{new}$
-    \underline{may continue to manage the cluster} until $C_{new}$ is committed.
-    
-\end{Def}
-\newpage
-
-\noindent
-Though we must address the situation where servers outside of $C_{new}$ try to 
-cast votes:
-\begin{Def}[Raft Joint Consensus Reconfiguration (Part 2)]
-
-    Since Raft processes requests asynchronously, during the transition to the new configuration 
-    from $C_{old,new}$ to $C_{new}$, the following could happen:
-    \begin{itemize}
-        \item A server not yet notified of the new configuration may not know it has been removed from it.
-        Hence, it may not receive heartbeats and attempt to start a new election.
-        \item A server with some other configuration comes online and begins to send out RPCs to the cluster.
-    \end{itemize}
-
-    \noindent
-    In any such case of unwanted votes, Raft enacts the following protocol to ensure safety:
-    \begin{itemize}
-        \item \textbf{Leader Liveliness:} If servers within $C_{new}$ believe they have a leader, they ignore votes \underline{(regardless of higher order terms).}
-        \item \textbf{Majority Rule:} Even if an election occurs, $C_{new}$ members will vote amongst themselves, for which servers outside of $C_{new}$ will never win.
-    \end{itemize}
-
-    \noindent
-    Ideally, we would like to immediately terminate servers that are removed, but this may not always be possible or practical.
-\end{Def}
-
-\newpage
-\subsection{Raft Algorithm Paper}
-Here we have provided the general outline for the Raft Algorithm. For a more detailed explanation, please refer to the original paper, which includes proofs:\\
-• \href{https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf}{https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf}.\\
-And the extended version here:\\
-• \href{https://raft.github.io/raft.pdf}{https://raft.github.io/raft.pdf}\\
-And these two websites which offer interactive visualizations of the Raft Algorithm:
-\begin{itemize}
-    \item \href{http://thesecretlivesofdata.com/raft/}{http://thesecretlivesofdata.com/raft/}
-    \item \href{https://raft.github.io/}{https://raft.github.io/}
-\end{itemize}
-The \underline{\textbf{next page}} will include the schematics for the Raft Algorithm's \textbf{State}, \textbf{AppendEntries RPC}, and \textbf{RequestVote RPC} \cite{184040}.
 \newpage
     \resizebox{\textwidth}{!}{%
     \renewcommand{\arraystretch}{1.6} % Increased padding
@@ -414,4 +321,212 @@ The \underline{\textbf{next page}} will include the schematics for the Raft Algo
     \end{tabular}
 }
 
+
+
+\newpage
+\subsection{Cluster Reconfiguration (Adding, Removing, and Replacing Servers)}
+\noindent
+Cluster reconfiguration involves adding, removing, replacing servers, or adjusting routines:
+
+\begin{Def}[Stop and Restart \& Pause and Resume]
+
+    \begin{itemize}
+        \item \textbf{Stop and Restart:} Immediately halt operations, save state, reconfigure, and restart.
+        \item \textbf{Pause and Resume:} Pause executing incoming requests and instead save them in a buffer, finish current processes,
+        reconfigure, restart and resume. 
+    \end{itemize}
+\end{Def}
+
+\noindent
+Raft takes a two phase approach to reconfigure the cluster:
+\begin{Def}[Raft Joint Consensus Reconfiguration (Part 1)]
+
+    Joint consensus allows for a cluster to service requests while reconfiguring.
+    It does this via a transition state, which is a combination of the old and new configurations (Joint consensus).\\
+
+    \noindent
+    \textbf{Reconfiguration:} Once a leader receives a configurations request to swap from $C_{old}$ to $C_{new}$, it appends $C_{old,new}$ to its logs, proceeding
+    as follows:
+    \begin{itemize}
+        \item \textbf{Phase 1:}
+        \begin{enumerate}
+            \item Propagate $C_{old,new}$ to all servers.
+            \item Servers receiving new configurations (e.g., $C_{old,new}$), acknowledge it (\textbf{regardless} if it's committed or not).
+            \item A leader crashing leads to reelections under $C_{old}$ or $C_{old,new}$ (committed or not).
+            \item Once $C_{old,new}$ is committed, the leader appends $C_{new}$ to its log and replicates it.
+        \end{enumerate}
+        \item \textbf{Phase 2:} 
+        \begin{enumerate}
+            \item $C_{new}$ is committed and live, any server not under $C_{new}$ can be shut down.
+            \item The leader who committed $C_{new}$ becomes a follower to account for \textbf{Deletion}.
+        \end{enumerate}
+        
+        
+    \end{itemize}
+
+    \noindent
+    \textbf{Addition:} New Servers enter with \textbf{empty logs} and added in the following manner:
+    \begin{enumerate}
+        \item The leader upon receiving $C_{new}$ is notified of new server existence.
+        \item New servers \textbf{cannot vote}, but only receive logs (as to avoid splitting the cluster).
+        \item Once new servers are synchronized in logs, $C_{old,new}$ may be committed.
+        \item $C_{old,new}$ clusters require the majority vote from \textbf{both old and new servers}.
+    \end{enumerate}
+
+    \noindent
+    \textbf{Deletion:} To remove servers, they are excluded in the $C_{new}$ configuration; \textbf{With the only exception} that leaders who do not exist in $C_{new}$
+    \underline{may continue to manage the cluster} until $C_{new}$ is committed.
+    
+\end{Def}
+\newpage
+
+\noindent
+Though we must address the situation where servers outside of $C_{new}$ try to 
+cast votes:
+\begin{Def}[Raft Joint Consensus Reconfiguration (Part 2)]
+
+    Since Raft processes requests asynchronously, during the transition to the new configuration 
+    from $C_{old,new}$ to $C_{new}$, the following could happen:
+    \begin{itemize}
+        \item A server not yet notified of the new configuration may not know it has been removed from it.
+        Hence, it may not receive heartbeats and attempt to start a new election.
+        \item A server with some other configuration comes online and begins to send out RPCs to the cluster.
+    \end{itemize}
+
+    \noindent
+    In any such case of unwanted votes, Raft enacts the following protocol to ensure safety:
+    \begin{itemize}
+        \item \textbf{Leader Liveliness:} If servers within $C_{new}$ believe they have a leader, they ignore votes \underline{(regardless of higher order terms).}
+        \item \textbf{Majority Rule:} Even if an election occurs, $C_{new}$ members will vote amongst themselves, for which servers outside of $C_{new}$ will never win.
+    \end{itemize}
+
+    \noindent
+    Ideally, we would like to immediately terminate servers that are removed, but this may not always be possible or practical.
+\end{Def}
+
+\vspace{-1em}
+\noindent
+\subsection{Log Compaction \& Snapshotting}
+
+\noindent
+In finite systems, logs cannot expand without bound. So as to clean log entries without losing state consensus, snapshotting is employed.
+\begin{Def}[Raft - Log Compaction \& Snapshots]
+
+    Raft compacts logs via state snapshots (\ref{def:snapshot}). Servers independently take snapshots, and \textbf{are not} initiated by the leader.
+    Snapshots employ the following protocol:
+    \begin{enumerate}
+        \item Trigger snapshot when logs reach a fixed size in \textbf{bytes} or time (e.g., see below tip).
+        \item The snapshot replaces \textbf{committed} log entries and retains entries yet to be committed.
+        \item The snapshot includes: last committed log index and term, and machine state\\
+        (e.g., key-value pairs).
+    \end{enumerate}
+\end{Def}
+\begin{Tip} \textbf{Simple Snapshot Initiate Protocol} - One possible 
+    solution suggested by the Raft paper is to initiate the snapshot when the log reaches a certain size in bytes.
+    Ideally a size significantly larger than the size of the expected snapshot. Since snapshots have a \textbf{fixed cost}
+    in setup, it reduces the overall cost overtime if snapshots occur at fewer intervals.
+\end{Tip}
+
+\newpage 
+
+\noindent
+This works for the following reason:
+\begin{Proof}[Raft - Log Compaction \& Snapshots]
+
+    Having the leader initiate snapshots may overcomplicated its role, RPCs, and or interfere with 
+    bandwidth by sending state over the network. Since the leader has already vetted committed 
+    log entries, it is safe to assume that resulting independent snapshot consisting of such entries are also safe. 
+\end{Proof}
+
+\noindent
+Though it's not ideal to send an snapshots over the network, in some cases it might have to.
+\begin{Def}[Raft Resynchronization (InstallSnapshot RPC)]
+
+    There are two cases where a snapshot may be sent:
+    \begin{enumerate}
+        \item \textbf{Missing Entry}: If the leader has already compacted a log entry it needs to send to a server, it sends the snapshot instead.
+        \item \textbf{Server Recovery}: A server coming online may be severely behind, and thus, simply sending AppendEntries RPCs may take too long.
+    \end{enumerate}
+
+    \noindent
+    In such cases the leader will send a \textbf{InstallSnapshot RPC}.
+    Such RPC includes the last log index. The server will discard all entries before the last 
+    included index, and retain the rest.
+\end{Def}
+
+\noindent
+Copying the entire dataset is costly, as to avoid this, Raft recommends a lazy snapshotting approach:
+
+\begin{Def}[Raft Snapshots - Copy-on-Write (CoW)]
+
+    \noindent
+    When snapshots occur, the server marks existing data as shared between the snapshot and the live state.
+    Only when a write (modification) touches shared data, does the server copy to preserve the snapshot.
+\end{Def}
+    
+\newpage
+
+\noindent
+\resizebox{\textwidth}{!}{%
+    \renewcommand{\arraystretch}{1.6} % Increased padding
+    \begin{tabular}{|l|p{13.3cm}|}
+        \hline
+        \rowcolor{Black} \multicolumn{2}{|c|}{\textcolor{white}{\textbf{InstallSnapshot RPC}}} \\
+        \hline
+        \rowcolor{OliveGreen!10}\multicolumn{2}{|l|}{\textbf{Invoked by leader to send chunks of a snapshot to a follower. Leaders always send chunks in order.}} \\
+        \hline
+        \rowcolor{OliveGreen!10} \textbf{Arguments} & \hspace{12em}\textbf{Description} \\
+        \hline
+        \textbf{term} & Leader's term. \\
+        \hline
+        \textbf{leaderId} & Allows follower to redirect clients. \\
+        \hline
+        \textbf{lastIncludedIndex} & The snapshot replaces all entries up through and including this index. \\
+        \hline
+        \textbf{lastIncludedTerm} & Term of \textbf{lastIncludedIndex}. \\
+        \hline
+        \textbf{offset} & Byte offset where chunk is positioned in the snapshot file. \\
+        \hline
+        \textbf{data[]} & Raw bytes of the snapshot chunk, starting at \textbf{offset}. \\
+        \hline
+        \textbf{done} & \textbf{True} if this is the last chunk. \\
+        \hline
+        \rowcolor{OliveGreen!10}\multicolumn{2}{|l|}{\textbf{Response to Sender}} \\
+        \hline
+        \textbf{term} & Current term, for leader to update itself. \\
+        \hline
+        \rowcolor{OliveGreen!10}\multicolumn{2}{|l|}{\textbf{Reciever Implementation}} \\
+        \hline
+        \multicolumn{2}{|p{10cm}|}{%
+            \parbox{11cm}{%
+                \begin{enumerate}
+                    \item Reply immediately if \textbf{term} $<$ \textbf{currentTerm}.
+                    \item Create new snapshot file if first chunk (\textbf{offset} = 0).
+                    \item Write data into snapshot file at given \textbf{offset}.
+                    \item Reply and wait for more data chunks if \textbf{done} is false.
+                    \item Save snapshot file, discard any existing or partial snapshot with a smaller index.
+                    \item If existing log entry has the same index and term as snapshot’s last included entry, retain log entries following it and reply.
+                    \item Discard the entire log.
+                    \item Reset state machine using snapshot contents (and load snapshot’s cluster configuration).
+                \end{enumerate}
+            }
+        } \\
+        \hline
+    \end{tabular}
+}
+
+
+
+\newpage
+\subsection{Raft Algorithm Paper}
+Here we have provided the general outline for the Raft Algorithm. For a more detailed explanation, please refer to the original paper, which includes proofs:\\
+• \href{https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf}{https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf}.\\
+And the extended version here:\\
+• \href{https://raft.github.io/raft.pdf}{https://raft.github.io/raft.pdf}\\
+And these two websites which offer interactive visualizations of the Raft Algorithm:
+\begin{itemize}
+    \item \href{http://thesecretlivesofdata.com/raft/}{http://thesecretlivesofdata.com/raft/}
+    \item \href{https://raft.github.io/}{https://raft.github.io/}
+\end{itemize}
+The \underline{\textbf{next page}} will include the schematics for the Raft Algorithm's \textbf{State}, \textbf{AppendEntries RPC}, and \textbf{RequestVote RPC} \cite{184040}.
 
