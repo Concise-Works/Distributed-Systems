@@ -1,4 +1,4 @@
-\section{Raft: Consensus Replication}
+\section{Raft Protocol: Consensus Replication}
 As we've discussed so far, replication consistency is crucial and a 
 difficult task. The next strategy, \textbf{Raft}, deals with such problem.
 There are other solutions, however, Raft is considered safe and easier to 
@@ -328,7 +328,26 @@ The next two pages are a summary of the Raft RPCs \textbf{AppendEntries}, \textb
         \hline
     
     \end{tabular}
-    }
+}
+
+\newpage
+\clearpage
+
+\begin{figure}[ht!]
+    \centering
+    \includegraphics[width=.869\textwidth]{Sections/raft/logs.png}
+    \caption{Simplified Raft server log replication where $T$ is the current term, $V$ is the voted for candidate, and $C$ is the commit index. (1-3) The client's request is redirected from $B$ to $A$. 
+    Then $A$ propagates the command $x\leftarrow 5$ as log index 2. (4) both $B$ and $C$ replicate the log and send back a heartbeat. (5) $A$ commits log 2, applies it to state, and sends an acknowledgment back to the client.
+    (6) $B$ and $C$ update the newly committed index and apply it to state.}
+\end{figure}
+\newpage
+
+\begin{figure}[ht!]
+    \centering
+    \includegraphics[width=.869\textwidth]{Sections/raft/logs_2.png}
+    \caption{(1) Server $C$ has an incorrect log, whilst server $A$ sends out the command $x\leftarrow 5$. (2) Server $C$ receives the command, but rejects it and informs $A$ where they differ. (3) Server $A$ re-sends the log from which they differ. 
+    (4) Server $C$ corrects such entry, and informs $A$ again. (5) Server $A$ retries once more. (6) Server $C$ receives the log and replicates it, and is thus up-to-date.}
+\end{figure}
 
 \newpage
 \subsection{Cluster Reconfiguration (Adding, Removing, and Replacing Servers)}
@@ -469,12 +488,11 @@ Copying the entire dataset is costly, as to avoid this, Raft recommends a lazy s
     Only when a write (modification) touches shared data, does the server copy to preserve the snapshot.
 \end{Def}
 
-\begin{Def}[Raft - Linearizing Client Interactions w/ IDs]
+\begin{Def}[Raft - Handling Stale Logs in Client Interactions]
 
     \noindent
-    Clients first connect to a random server, and are redirected if not the leader server.
-    Server crashes timeout clients, for which clients retry their requests with another server. Raft 
-    supports \textbf{linearizable} semantics in the following way:
+    Raft ensures clients receive up-to-date logs from leaders via the following methods:
+
     \begin{itemize}
         \item \textbf{Command IDs:} Each command is assigned unique serial numbers. Each server maintains the last processed command ID and associated response for 
         each client.
@@ -492,6 +510,8 @@ Copying the entire dataset is costly, as to avoid this, Raft recommends a lazy s
 
 \noindent
 Below is a summary of the Raft RPC \textbf{InstallSnapshot} for implementation:\\
+
+\vspace{2em}
 
 \noindent
 \resizebox{\textwidth}{!}{%
@@ -532,15 +552,30 @@ Below is a summary of the Raft RPC \textbf{InstallSnapshot} for implementation:\
                     \item Write data into snapshot file at given \textbf{offset}.
                     \item Reply and wait for more data chunks if \textbf{done} is false.
                     \item Save snapshot file, discard any existing or partial snapshot with a smaller index.
-                    \item If existing log entry has the same index and term as snapshot’s last included entry, retain log entries following it and reply.
+                    \item If existing log entry has the same index and term as snapshot's last included entry, retain log entries following it and reply.
                     \item Discard the entire log.
-                    \item Reset state machine using snapshot contents (and load snapshot’s cluster configuration).
+                    \item Reset state machine using snapshot contents (and load snapshot's cluster configuration).
                 \end{enumerate}
             }
         } \\
         \hline
     \end{tabular}
 }
+
+\newpage
+
+\noindent
+Consider the below figure which illustrates a snapshot taken from a server $A$:
+\begin{figure}[ht!]
+    \centering
+    \includegraphics[width=\textwidth]{Sections/raft/snap.png}
+
+    \vspace{1em}
+    \caption{Server $A$ begins with the initial state where, $T$ is the current term, $V$ is the voted for candidate, and $C$ is the commit index. There is a separate partition for the snapshot where,
+    $LastIndex$ is the last committed log entry's index, and $LastTerm$, the 
+    term from which $LastIndex$ resided. The arrow points towards after the snapshot, from which we see 6, the remaining log entry that wasn't committed.}
+\end{figure}
+
 
 \subsection{Raft Algorithm Paper}
 Below is the original source with additional proofs and explanations \cite{184040}:
