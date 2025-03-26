@@ -260,14 +260,14 @@ And for causality we have:
 \begin{Answer} Given the following Lamport timestamps, determine the causal order relationships:
 
     \begin{itemize}
-        \item[(a)] $(0,P)\ ?\ (0,Q)$: $P \parallel Q$
-        \item[(b)] $(1,P)\ ?\ (0,Q)$: $P \parallel Q$
-        \item[(c)] $(0,P)\ ?\ (1,Q)$: $Q \parallel P$
+        \item[(a)] $(0,P)\ ?\ (0,Q)$: $P \parallel Q$. To break the tie, the processes would need some order, say $(0,1)\rightarrow(0,2)$, is a possibility, but not guaranteed.
+        \item[(b)] $(1,P)\ ?\ (0,Q)$: $P \parallel Q$ or $Q \rightarrow P$ are possible.
+        \item[(c)] $(0,P)\ ?\ (1,Q)$: $Q \parallel P$ or $P \rightarrow Q$ are possible.
     \end{itemize}
 
     \noindent
     \textbf{Note:} The Lamport timestamps are not enough to determine causal order relationships between independent processes, unless 
-    we have the context of the execution trace.\\
+    we have the context of the execution trace. In the processes were orderd
 \end{Answer}
 
 \begin{Answer} Given the following Vector clocks, determine the causal order relationships:
@@ -275,6 +275,6 @@ And for causality we have:
     \begin{itemize}
         \item[(a)] $[0,0]\ ?\ [0,0]$: $[0,0] \parallel [0,0]$
         \item[(b)] $[1,0]\ ?\ [0,0]$: $[1,0] \not\rightarrow [0,0]$
-        \item[(c)] $[0,1]\ ?\ [1,0]$: $[0,1] <> [1,0]$
+        \item[(c)] $[0,1]\ ?\ [1,0]$: $[0,1] <> [1,0]$ or $[0,1] \parallel [1,0]$
     \end{itemize}
 \end{Answer}
