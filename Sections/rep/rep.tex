@@ -197,8 +197,8 @@ Consider the comparison between \textbf{Primary-Backup} vs. \textbf{Chain Replic
 \begin{theo}[Primary-Backup vs. Chain Replication]
 
     In terms of \textbf{Latency}, \textbf{Primary-Backup} is faster as the request can theoretically be processed in parallel. 
-    However, \textbf{Chain Replication} is more \textbf{Fault-Tolerant} and allows for a greater degree of \textbf{Throughput}, allowing 
-    requests to be processed in parallel.
+    However, \textbf{Chain Replication} is more \textbf{Fault-Tolerant}. If Reads/Writes are 50/50,
+    then Chain Replication has \textbf{faster throughput} as it can split up reads (to the tail) and writes (to the head).
 \end{theo}
 
 \newpage 

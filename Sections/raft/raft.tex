@@ -2,13 +2,16 @@
 As we've discussed so far, replication consistency is crucial and a 
 difficult task. The next strategy, \textbf{Raft}, deals with such problem.
 There are other solutions, however, Raft is considered safe and easier to 
-implement correctly than other solutions. First we must familiarize ourselves with the following terms:
-\begin{Def}[State Machines in Distributed Systems]
+implement correctly than other solutions:
+\begin{Def}[State Machines \& Consensus Algorithms]
     
     A \textbf{State Machine} processes sequence of inputs from a \textbf{log} and saves them
     in state.
     \textbf{Replicated state machines} are implemented via \textbf{replicated logs} across multiple servers
-    utilizing a \textbf{Consensus Algorithm}, validating log order. Such commands need be \textbf{deterministic}.
+    utilizing a \textbf{Consensus Model}, which facilitate data agreement between nodes. 
+    
+    Hence, commands need be \textbf{deterministic}, and the consensus algorithm 
+    \textbf{must be} flexible enough to handle and replicate application specific data.
 \end{Def}
 
 \vspace{-1.5em}
@@ -191,6 +194,7 @@ To fix this, we introduce constraints on leader election:
     \begin{itemize}
         \item If $\varsigma$'s last log is from a lower term, the vote is \textbf{rejected}.
         \item If $\varsigma$'s last log is from the same term, but shorter, the vote is \textbf{rejected}.
+        \item If $\varsigma$'s last log is from a higher term, then the vote is \textbf{accepted}.
         \item If $\varsigma$'s log is \textbf{at least} as up-to-date as the voter, the vote is \textbf{accepted}.
     \end{itemize}
 \end{Def}
@@ -209,7 +213,7 @@ To fix this, we introduce constraints on leader election:
     broadcastTime \ll electionTimeout \ll MTBF
     $$
     \noindent
-    $broadcastTime$ measures the average time of heartbeat reciprocation for a server (e.g., .5ms-20ms).
+    $broadcastTime$ measures the average time of heartbeat reciprocation (e.g., .5ms-20ms).
     Then $electionTimeout$, the randomly assigned timeout times for each server (e.g, 10ms-500ms), and $MTBF$, the
     average time between failures of a server (e.g., several months or more).
 \end{theo}

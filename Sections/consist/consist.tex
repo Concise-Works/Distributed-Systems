@@ -215,7 +215,7 @@ Determine whether the following system is release or lazy-release consistent:
 \begin{figure}[h]
     \centering
     \includegraphics[width=.9\textwidth]{Sections/consist/rel.png}
-    \caption{A distributed system with client C1, C2, and C3 interactions. Where $Wx1$ reads, ``Write 1 to x'' and $Rx1$ reads, ``1 read from x.'' This 
+    \caption{A distributed system with client C1, C2, and C3 interactions. Where $Wx1$ reads, ``Write 1 to x'' and $Rx1$ reads, ``1 read from x.'' With L (lock) and R (Release). This 
     is Lazy-release consistent, as C3's read of $x$ wasn't updated to 3 in absence of a lock.}
 \end{figure}
 \newpage 
@@ -284,7 +284,7 @@ Consider the following example and determine whether it is causally consistent:
     \centering
     \includegraphics[width=.9\textwidth]{Sections/consist/seq3.png}
     \caption{This 
-    System is not causally consistent for the same reasons as Figure (\ref{fig:seq3}) is not sequentially consistent.}
+    System is causally consistent.}
 \end{figure}
 
 \begin{Def}[Eventual Consistency]

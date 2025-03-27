@@ -154,8 +154,8 @@ In practice the only thing we have access to are these logical timestamps, which
 
     Given two events $a$ and $b$ with timestamps $t(a)$ and $t(b)$, with $r$ trace, we only guarantee:
     \begin{itemize}
-        \item If $a \rightarrow_r b$, then $t(a) < t(b)$.
-        \item If $t(a) \geq t(b)$, then $a \not\rightarrow_r b$.
+        \item If $a \rightarrow_r b$, then $t(a) < t(b)$. \quad  • Let $a:=(3,1)$ and $b:=(1,2)$, then $t(a) > t(b)$.
+        \item If $t(a) \geq t(b)$, then $a \not\rightarrow_r b$. \hspace{.6em} • ID ordering break ties: $(1,1) < (1,2)$. 
     \end{itemize}
 \end{theo}
 
@@ -232,8 +232,16 @@ And for causality we have:
     \end{itemize}
 \end{theo}
 
-\noindent
-\rule{\textwidth}{0.4pt}\\
+\begin{theo}[Total vs. Partial Ordering]
+
+    Total Ordering means all timestamp pairs are comparable. Hence:
+    \begin{itemize}
+        \item \textbf{Lamport Clocks} define a \textbf{Total Ordering} as we can evaluate all pairs of timestamps.
+        \item \textbf{Vector Clocks} define a \textbf{Partial Ordering} as there are situations such as [1,0] and [0,1], which are 
+        non-comparable.
+    \end{itemize} 
+\end{theo}
+ \newpage 
 
 \begin{Exercise} Given the following Lamport timestamps, determine the causal order relationships:
 
@@ -260,7 +268,7 @@ And for causality we have:
 \begin{Answer} Given the following Lamport timestamps, determine the causal order relationships:
 
     \begin{itemize}
-        \item[(a)] $(0,P)\ ?\ (0,Q)$: $P \parallel Q$. To break the tie, the processes would need some order, say $(0,1)\rightarrow(0,2)$, is a possibility, but not guaranteed.
+        \item[(a)] $(0,P)\ ?\ (0,Q)$: $P \parallel Q$. To break the tie, the processes would need some order. If $P$ is before $Q$ in process order, then $P \rightarrow Q$ is possible.
         \item[(b)] $(1,P)\ ?\ (0,Q)$: $P \parallel Q$ or $Q \rightarrow P$ are possible.
         \item[(c)] $(0,P)\ ?\ (1,Q)$: $Q \parallel P$ or $P \rightarrow Q$ are possible.
     \end{itemize}
