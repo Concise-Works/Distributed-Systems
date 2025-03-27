@@ -107,9 +107,10 @@ To handle network unreliability, we'll first consider two failure models:
 \begin{Def}[At-least-once \& At-most-once]
 
     \begin{itemize}
-        \item \textbf{At-least-once:} Ensures that the RPC call is delivered to the server at least once, regardless of failures. Though additional methods like IDs to ensure duplicated calls are handled server-side.
-        \item \textbf{At-most-once:} The server detects duplicates calls and does not
-        re-execute RPC handler via some ID system.
+        \item \textbf{At-least-once (client):} The client repeats requests until a response is heard. 
+        Reads alone are fine, but writes cause race conditions.
+        \item \textbf{At-most-once (server):} The server handles duplicate requests from clients via
+        some ID system, enabling cached responses (requires client to send IDs).
     \end{itemize}
 \end{Def}
 
@@ -147,16 +148,18 @@ Now to discuss briefly how a basic TCP connection is made:
     \noindent
     After the three-way handshake, the connection is established and the client and server can communicate exchanging SYN and ACK data-packets.
     To end the connection another three-way handshake takes placed, where instead SYN, \textbf{FIN (finish)} is used.
+
+    Such a system preserves the order of packets sent and received, making it a \textbf{FIFO (First In First Out)} system.
 \end{Def}
 
 \noindent
-Given this implementation, we approach somewhere in the realm of an \textbf{Exactly-Once model}:
+We now combine at-least-once and at-most-once to create the following model:
 
 \begin{Def}[Exactly-Once Model]
 
-    The Exactly-Once model guarantees that a message is delivered exactly once to the recipient. Meaning, messages aren't duplicated, lost, or delivered out of order.
-    However, In practice, data packets might do all of the above. Though with the right
-    protocols in place, we can ensure order of logic is preserved.
+    Utilized both \textbf{at-least-once} and \textbf{at-most-once} (client and server) models. Hence, client send requests indefinitely and 
+    the server handles duplicates via using IDs provided by the client. Duplicate requests 
+    receive a response of the cached response.
 \end{Def}
 
 \newpage 
