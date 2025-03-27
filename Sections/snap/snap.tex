@@ -70,20 +70,18 @@ There are many snapshot protocols, but we will focus on the \textbf{Chandy-Lampo
     \noindent
     \textbf{Completion}: When all processes have received and sent a marker, the snapshot is complete. This 
     means every processes incoming channel is empty, hence the conclusion of the snapshot.
-\end{Def}
-
-\begin{Tip} Leslie Lamport recalls the Chandy-Lamport Algorithm's creation as follows:\\
-    ``The distributed snapshot algorithm described here came
-    about when I visited Chandy, who was then at the
-    University of Texas in Austin. He posed the problem to me
-    over dinner, but we had both had too much wine to think
-    about it right then. The next morning, in the shower, I came
-    up with the solution. When I arrived at Chandy's office, he
-    was waiting for me with the same solution.''\\
 
     \noindent
-    - \href{https://lamport.azurewebsites.net/pubs/chandy.pdf}{https://lamport.azurewebsites.net/pubs/chandy.pdf}
-\end{Tip}
+    \rule{\textwidth}{0.4pt}\\
+
+    \noindent
+    \textbf{Important Notes}:
+    \begin{itemize}
+        \item Subsequent markers received are ignored, \textbf{only the first} marker received is acted upon.
+        \item Without the FIFO property, restarting the system may not be possible, as it relies on the order of messages to 
+        reproduce state.
+    \end{itemize}
+\end{Def}
 
 \newpage 
 
@@ -113,4 +111,28 @@ We continue the snapshot process with the following steps:
 \noindent
 (4) $p_3$ received the marker from $p_2$, and designates that incoming channel as empty. It begins recording state, sending out the marker to $p_1$ and $p_2$.
 Take notice that messages $m_4$ and $m_5$ have been recorded from (3).
-(5) All channels are now empty, concluding the snapshot. Take note that $m_6$ and $m_7$ were not recorded as they were sent on empty channels.
+(5) All channels are now empty, concluding the snapshot. Take note that $m_6$ and $m_7$ were not recorded as they were sent on empty channels.\\
+
+\begin{theo}[Replay of a Snapshot]
+
+    When replaying a snapshot captured using the Chandy-Lamport protocol, 
+    messages in transit (i.e., sent by a task whose state was recorded, but not yet received by others) 
+    \textbf{must also be replayed}. \\
+
+    \noindent
+    In particular, if task $A$ sends a message to task $B$, and only $A$ is included in the snapshot,
+    then the message is considered in transit and must be delivered to $B$ upon replay.
+\end{theo}
+
+
+\newpage 
+
+\noindent
+Consider the following illustrations and think about how many messages may be replayed:
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{Sections/snap/snap_2.png}
+    \caption{tasks $a,b$ and $e$ are recorded in the snapshot. Both $a$ and $b$ send messages from which aren't recorded in the snapshot. After 
+    reloading the snapshot, $a$ and $b$'s messages \textbf{must be replayed}.}
+\end{figure}

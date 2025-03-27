@@ -108,7 +108,8 @@ To handle network unreliability, we'll first consider two failure models:
 
     \begin{itemize}
         \item \textbf{At-least-once:} Ensures that the RPC call is delivered to the server at least once, regardless of failures. Though additional methods like IDs to ensure duplicated calls are handled server-side.
-        \item \textbf{At-most-once:} Ensures that the RPC call is delivered at most once. So even if the call fails, it won't be retried. So messages may be lost if the server fails to receive them.
+        \item \textbf{At-most-once:} The server detects duplicates calls and does not
+        re-execute RPC handler via some ID system.
     \end{itemize}
 \end{Def}
 
@@ -780,7 +781,8 @@ Consider the following example of downloading and processing data concurrently:
     In Go, channels can be either \textbf{unbuffered} or \textbf{buffered}:
     \begin{itemize}
         \item \textbf{Unbuffered Channels:} Require a sender and receiver to be ready to communicate. If the receiver is not ready, the sender will block until the receiver is ready.
-        \item \textbf{Buffered Channels:} Allow a sender to send data to a channel without the receiver being ready. The channel will store the data until the receiver is ready.
+        \item \textbf{Buffered Channels:} Allow a sender to send data to a channel without the receiver being ready. The channel will store the data until the receiver is ready. Full channels 
+        block the sender, and empty channels block the receiver.
     \end{itemize}
 \end{theo}
 
