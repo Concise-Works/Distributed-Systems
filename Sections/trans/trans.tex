@@ -89,7 +89,7 @@ We consider the following model to help us preform transactions:
                 \item \texttt{ABORT}: if it conflicts with prior transactions.
             \end{itemize}
         
-            \item \textbf{Database Servers}: Receives transaction operations, executing it on local state. Then, on \textbf{OK}---commit state, on \textbf{ABORT}---rollback to the previous state.
+            \item \textbf{Database Servers (DB)}: Receives transaction operations, executing it on local state. Then, on \textbf{OK}---commit state, on \textbf{ABORT}---rollback to the previous state.
         
         \end{itemize}        
         \end{Def}
@@ -145,7 +145,7 @@ We consider the following model to help us preform transactions:
 \begin{theo}[Timestamping Distributed OCC]
 
     \textbf{Timestamping} is a method where each transaction is assigned a unique timestamp (ID), which aids
-    order agreement between TCs.
+    order agreement between TCs. The downside: \textbf{unnecessary aborts.}
 \end{theo}
 
 \begin{Example}[Timestamping Distributed OCC]
@@ -162,4 +162,29 @@ We consider the following model to help us preform transactions:
     \newpage 
 
 \subsection{Two-Phase Commit (2PC)}
+\noindent
+We introduce another method to help us with this problem, though it \textbf{does not ensure isolation}:
+
+\begin{Def}[Two-Phase Commit (2PC)]
+
+    \textbf{Two-Phase Commit (2PC)} ensures \textbf{atomicity}.
+    The client sends the transactions to the DBs (participants). There after, the client tells the TC start the commit process, involving two phases:
     
+    \begin{itemize}
+        \item \textbf{Prepare Phase}: The coordinator sends a prepare request to all DBs; Each respond:
+        \begin{itemize}
+            \item \texttt{YES}: if it can commit the transaction.
+            \item \texttt{NO}: if it cannot commit the transaction.
+        \end{itemize}
+        \item \textbf{Commit Phase}: If all voted \texttt{YES}, the coordinator sends a \texttt{COMMIT} request to all DBs. If any participant voted \texttt{NO}, the coordinator sends an \texttt{ABORT}.
+        The TC then responds to the client with the final outcome of the transaction.
+    \end{itemize}
+\end{Def}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{Sections/trans/2PC.png}
+    \caption{Two-Phase Commit (2PC) process. The client sets up the transaction with the TC and DBs. Then, the TC starts the 
+    commit process, starting with the prepare phase, and then ends with the commit phase.}
+    \label{fig:2pc}
+\end{figure}
