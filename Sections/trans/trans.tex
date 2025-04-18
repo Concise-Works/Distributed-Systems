@@ -188,3 +188,118 @@ We introduce another method to help us with this problem, though it \textbf{does
     commit process, starting with the prepare phase, and then ends with the commit phase.}
     \label{fig:2pc}
 \end{figure}
+
+\newpage 
+
+\noindent
+Though there is a pitfall with this method:
+
+\begin{Def}[2PC Blockout]
+
+   In most cases if there's a timeout the TC or DBs will abort the transaction.
+   However, if the TC times out after a DB has voted \texttt{YES}, the DB is left in an uncertain state, 
+   and must \textbf{wait} for the TC to respond.
+\end{Def}
+
+\noindent
+\resizebox{\textwidth}{!}{%
+\renewcommand{\arraystretch}{1.6}
+\begin{tabular}{|p{5cm}|p{6cm}|}
+    \hline
+    \rowcolor{Black} \multicolumn{2}{|c|}{\textcolor{white}{\large \textbf{Preparation Phase}}} \\
+    \hline
+    \rowcolor{OliveGreen!10} \textbf{\large Case} & \textbf{\large Action} \\
+    \hline
+    TC timeout for yes/no vote & \large \textbf{Abort} — transaction coordinator did not receive votes in time. \\
+    \hline
+    DB timeout for prepare & \large \textbf{Abort} — database did not receive prepare request in time. \\
+    \hline
+
+    \rowcolor{Black} \multicolumn{2}{|c|}{\textcolor{white}{\large \textbf{Commit Phase}}} \\
+    \hline
+    \rowcolor{OliveGreen!10} \textbf{\large Case} & \textbf{\large Action} \\
+    \hline
+    DB timeout for commit/abort and DB voted NO & \large \textbf{Abort} — since DB already voted NO, it's safe to abort. \\
+    \hline
+    DB timeout for commit/abort and DB voted YES & \large \textbf{Block} — DB must wait for TC decision to preserve atomicity. \\
+    \hline
+\end{tabular}
+}
+
+\begin{Def}[2PC Persistent \& Volatile State]
+
+    In the Two-Phase Commit (2PC) protocol, both the Transaction Coordinator (TC) and Database (DB) participants must persist critical information to recover correctly after a crash.
+
+    \begin{itemize}
+        \item \textbf{Database (DB):}
+        \begin{itemize}
+            \item Must persist the result of any vote (\texttt{YES} or \texttt{NO}).
+            \item If the DB voted \texttt{YES} and then crashes, upon recovery it must contact the TC to learn the final decision (\texttt{COMMIT} or \texttt{ABORT}).
+        \end{itemize}
+
+        \item \textbf{Transaction Coordinator (TC):}
+        \begin{itemize}
+            \item Must persist the result of any vote and the final decision (\texttt{COMMIT} or \texttt{ABORT}).
+            \item If the TC crashes, it must resume the commit protocol from where it left off.
+        \end{itemize}
+    \end{itemize}
+
+\end{Def}
+
+
+
+
+
+\newpage 
+\subsection{Three-Phase Commit (3PC)}
+\noindent
+2PC's main problem was \textbf{availability}. We can fix this by adding an additional phase:
+\begin{Def}[Three-Phase Commit (3PC)]
+
+    \textbf{Three-Phase Commit (3PC)} is an extension of 2PC that adds a third phase to avoid blocking in case of failures:
+    
+    \begin{itemize}
+        \item \textbf{CanCommit Phase}: The coordinator sends a \texttt{CANCOMMIT} request to all participants. Each participant responds with either \texttt{YES} or \texttt{NO}.
+        \item \textbf{PreCommit Phase}: If all participants respond with \texttt{YES}, the coordinator sends a \texttt{PRECOMMIT} request to all participants. Participants prepare to commit sending back an acknowledgment (\texttt{ACK}).
+        \item \textbf{DoCommit Phase}: If all participants \texttt{ACK} the precommit, the coordinator sends a \texttt{COMMIT} request. Otherwise, it sends an \texttt{ABORT} request.
+    \end{itemize}
+\end{Def}
+
+\begin{theo}[3PC Non-Blocking Nature \& Self-Resolution]
+
+    The reason this fixes the blocking issue in 2PC lies within the \texttt{PRECOMMIT} phase.
+    In regular 2PC, if a DB votes \texttt{YES} it must wait for the TC to respond as it is uncertain whether another DB 
+    has committed or not.
+
+    In 3PC, such DB need not worry, as no other DB can commit until the TC sends a \texttt{PRECOMMIT} request. Henceforth,
+    DBs can safely either terminate or resolve between themselves that if everyone else has the \texttt{PRECOMMIT} request, they can commit.
+\end{theo}
+
+\begin{theo}[3PC Persistent \& Volatile State]
+
+    Both the TC and DBs may crash at any time, for which they must persist the state of the transactions.
+    Though it is fully possible for the TC to only persist the original transaction request, and instead 
+    query \underline{\textbf{all}} DBs for their state to recover the transaction. 
+\end{theo}    
+
+\begin{theo}[3PC Tradeoffs]
+
+    \begin{itemize}
+        \item ($-$) If the network becomes partitioned, inconsistencies may arise within self-resolution.
+        \item ($-$) Adds another round trip to the commit process (3 in total).
+        \item ($+$) Removes the blocking issue of 2PC, as the TC can always recover from a crash. 
+    \end{itemize}
+\end{theo}
+
+
+\newpage 
+
+\noindent
+Below is a diagram of the 3PC process:
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{Sections/trans/3PC.png}
+    \caption{Three-Phase Commit (3PC) protocol message flow. The transaction progresses through three phases: \textbf{CanCommit}, where participants vote; \textbf{PreCommit}, where participants acknowledge readiness to commit; and \textbf{DoCommit}, where the final decision is executed. In the event of coordinator failure, participants may invoke \textbf{Self-Resolve} after a timeout, based on whether they received a \texttt{PreCommit} message, ensuring non-blocking recovery.
+    \textbf{Note:} The Databases do not communicate with the client after resolution, though this could depend on the implementation.}
+    \label{fig:3pc}
+\end{figure}
