@@ -99,7 +99,11 @@ Virtual memory solves the three problems we mentioned before:
 
     The physical memory can be much smaller than what a program thinks it has in virtual memory. When a program tries to access memory 
     it does not have, the OS will \textbf{swap} physical memory to external storage to free up space. This means, while a program is not using 
-    a portion of memory at a given time, the OS can swap it in and out depending on system needs.
+    a portion of memory at a given time, the OS can swap it in and out depending on system needs.\\
+
+    \noindent
+    Memory that is swapped out is called \textbf{swap-memory}. Every time a we try to access such absent memory 
+    in our mappings, it's called a \textbf{page fault} (more on this later).
 \end{Def}
 
 \newpage
@@ -108,3 +112,46 @@ Virtual memory solves the three problems we mentioned before:
     Virtual memory allows programs to think they have contiguous memory. This simplifies their 
     memory management, while in reality the OS manages the split memory mappings.
 \end{Def}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{Sections/virt/frag.png}
+    
+    \vspace{1em}
+    \caption{Here two processes $A$ and $B$ are using the same physical memory space. Both think they have 
+    contiguous memory, but in reality, $B$ is split into two parts in the physical memory.}
+    
+    \label{fig:virt3}
+\end{figure}
+
+\begin{Def}[Virtual Memory \& Security]
+
+    Memory cells are collision safe as memory mappings are not shared in physical memory; However, this would be 
+    inefficient if say $A$ and $B$ depend on a secondary process $C$. In this case, $A$ and $B$ may share the same mapping to $C$'s memory, but not to each other.
+\end{Def}
+
+\subsection{Virtual Memory Implementation (Page Tables)}
+\noindent
+We discuss the mapping mechanism further in linking virtual to physical memory.
+\begin{Def}[Page Tables]
+
+    The OS keeps a \textbf{page table}, where each entry is a mapping of a virtual memory cell to a physical one, called a \textbf{Page Table Entry (PTE)}.
+    CPUs work with words (32 bits = 4 bytes), so the page table has one entry for every word (address) in the virtual memory space.
+\end{Def}
+
+\newpage 
+
+\noindent
+We make the following observation:
+\begin{theo}[Theoretical Page Table Space Complexity]
+
+    If our CPU 32-bits, then there are $2^{32}$ addresses. CPUs speak in words, hence we'd need $2^{30}$ words, and thus $\approx$ 1 billion PTEs (4 GB per table).
+    This is too much memory to practically implement.
+\end{theo}
+
+\noindent
+To solve the above problem, via the following strategy:
+
+\begin{Def}[Memory Chunking (Pages)]
+
+    
