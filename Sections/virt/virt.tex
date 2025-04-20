@@ -351,3 +351,64 @@ Multi-level breaks away from this, and instead as illustrated below:
     \noindent
     Modern versions of Windows and Linux support 5 levels, which allows for a maximum of 129 PiB, while 4 gives us 256 TiB.
 \end{Def}
+
+\newpage 
+
+\noindent
+Finally we talk about the performance of our lookups:
+
+\begin{Def}[Effective Memory Access Time (EMAT)]
+
+    Effective Memory Access Time (EMAT) accounts for the time it takes to access memory in the presence of a Translation Lookaside Buffer (TLB), multi-level paging, and potential page faults.
+    Given:
+    \begin{itemize}
+        \item $t$ = TLB access time;\hspace{3.4em} $m$ = Memory access time
+        \item $S$ = Page fault service time;\quad $n$ = Number of page levels
+        \item $h$ = TLB hit rate;\hspace{5.1em} $p$ = Page hit rate (1 - page fault rate)
+    \end{itemize}
+
+    The EMAT is computed as:
+
+    \[
+    \text{EMAT} =
+    h(t + m) +
+    (1 - h)\left(t + p(n \cdot m) + (1 - p)S\right)
+    \]
+    \noindent
+    Essentially \cite{69017},
+    \begin{lstlisting}
+        EMAT=
+        TLB hit*(TLB access time + Memory access time)
+        + TLB Miss*(TLB access time + PageHit*[n * memory access time]
+        + PageMiss*PageFaultServiceTime)
+    \end{lstlisting}
+\end{Def}
+\begin{Example}[Three-Level Paging System]
+
+    Suppose the system has:
+    \begin{itemize}
+        \item $n = 3$ page levels
+        \item $t = 5$ ns (TLB lookup)
+        \item $m = 100$ ns (memory access time)
+        \item $\alpha = 0.80$ (TLB hit rate)
+    \end{itemize}
+
+    \noindent
+    Then the EMAT is:
+    \begin{align*}
+    \text{EMAT} &=
+    (5 + 100)\cdot 0.80 +
+    (5 + 3 \cdot 100 + 100)\cdot (1 - 0.80)\\
+    &= 105 \cdot 0.80 + 405 \cdot 0.20 = 84 + 81 = \boxed{165\ \text{ns}}
+    \end{align*}
+
+    \noindent
+    For a better TLB hit rate $\alpha = 0.98$:
+    
+    \vspace{-1em}
+    \begin{align*}
+        \hspace{4.3em}\text{EMAT} =
+        105 \cdot 0.98 + 405 \cdot 0.02 = 102.9 + 8.1 = \boxed{111\ \text{ns}}  && \cite{amir2003multilevel}
+    \end{align*}
+\end{Example}
+
