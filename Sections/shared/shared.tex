@@ -1,3 +1,4 @@
+\newpage
 \section{Distributed Shared Memory}
 To speed up computation on a single machine, we use multiple cores to 
 run OS threads in parallel. Consider the following example:
@@ -62,7 +63,7 @@ We clearly define our problem-space:
     Page faults are redirected to the DSM system to resolve.\\
 
     \noindent
-    \underline{\textbf{Consensus Model:} Strong consistency, and linearizability.} \textbf{Every} read operation is up-to-date, reflecting the most recent write, if any.
+    \underline{\textbf{Consistency Model:} Strong consistency, and linearizability.} \textbf{Every} read operation is up-to-date, reflecting the most recent write, if any.
 
 \end{Def}
 
@@ -115,7 +116,7 @@ A particular DSM system called \textbf{TreadMarks} solves this problem:
     Both $M_j$ and $M_i$ revert to RO access.\\
 
     \noindent
-    \underline{\textbf{Consensus Model:} Strong consistency, and linearizability.}
+    \underline{\textbf{Consistency Model:} Strong consistency, and linearizability} (at most one writeable copy).
 \end{Def}
 
 \vspace{-1em}
@@ -126,4 +127,96 @@ A particular DSM system called \textbf{TreadMarks} solves this problem:
     \label{fig:dsm}
 \end{figure}
 
+\newpage
+\noindent
+To ensure that multiple RW access occurs on the same data we send locks over the network.
+We briefly discussed these methods in Subsection (\ref{sec:rel}) concerning release consistency.
+\begin{Def}[TreadMarks -- Lazy-release]
+
+    TreadMarks utilizes lazy-release consistency to protect against data-races.
+    The programmer explicitly locks and unlocks shared data (e.g., mutexes on variables).
+    Any page that is dirtied (modified) the dsm generates a diff for. Per lazy-release consistency,
+    nodes only require diffs when trying to access data from such pages.
+\end{Def}
+
+\noindent
+Though this is a good start, it loses the causal relationship between the data.
+\begin{Example}[Using Vector Clocks to Capture Causal Consistency]
+
+    Consider the following example at initialization \snippet{x := 0; y := \&x; var z *int}:
+    \begin{lstlisting}[language=Go, numbers=none]
+1.  // -- Machine M0 -- initial VC = [0,0,0]
+
+    Lock(A)            // acquire lock A
+    x = 7              // write to page A
+    Unlock(A)          // increments VC[0] -> VC = [1,0,0]; diffA@[1,0,0]
+
+    Lock(B)            // acquire lock B
+    y = &x             // write to page B (stores pointer to x)
+    Unlock(B)          // increments VC[0] _> VC = [2,0,0]; diffB@[2,0,0]
+
+    \end{lstlisting}
+
+    \begin{lstlisting}[language=Go, numbers=none]
+2.  // -- Machine M1 -- initial VC = [0,0,0]
+
+    Lock(B)            // pulls diffs for B newer than [0,0,0]:
+                       // gets diffA@[1,0,0] and diffB@[2,0,0]
+                       // updates VC to [2,0,0]
+    Lock(C)            // acquire lock C
+    z = y              // write to page C (stores the pointer y)
+    Unlock(C)          // increments VC[1] -> VC = [2,1,0]; diffC@[2,1,0]
+    Unlock(B)          // no writes, but would propagate nothing new
+    \end{lstlisting}
+
+    \begin{lstlisting}[language=Go, numbers=none]
+3.  // -- Machine M2 -- initial VC = [0,0,0]
     
+    Lock(C)            // pulls diffs for C newer than [0,0,0]:
+                       // diffA@[1,0,0], diffB@[2,0,0], then diffC@[2,1,0]
+    print(*z)          // prints 7 as opposed to 0
+    Unlock(C)          
+    \end{lstlisting}
+    \noindent
+    Without vector clocks, $M_3$ would have only seen $M_1$'s changes to $C$ (\snippet{z = y}), missing that 
+    that $A$ and $B$ were modified before. Therefore $M_3$ would have printed 0 instead of 7.
+\end{Example}
+
+\newpage 
+
+\noindent
+Hence, we need to employ vector clocks to ensure causality. Let's define it:
+\begin{Def}[TreadMarks -- Causal Consistency]
+
+    TreadMarks utilizes vector clocks to ensure causal consistency between page updates.
+    Each index of the vector clock corresponds to each machine in the system. Every update monotonically increases $M_i$'s index in the vector clock.\\
+
+    \noindent
+    For instance, say there are two machines $M_0$ and $M_1$ with pages $A$ and $B$ respectively, resulting in a vector clock of $[0,0]$.
+    If $M_0$ modifies page $A$ then $B$, it would increment its index once for $A$'s diff and then twice for $B$'s diff, yielding $[2,0]$. 
+    
+    Once $M_1$ reads page $B$, 
+    it requests the lock from $M_0$. Along with the lock acquisition comes the diffs for $A$ and $B$.
+    Then $M_1$ applies every diff from $M_0$'s vector clock that is greater than its own, resulting in $[2,0]$. Only when $M_1$ modifies page $B$, does its local vector clock increase to $[2,1]$ (while $M_0$'s remains at $[2,0]$).
+\end{Def}
+
+\noindent
+In summary we need the following components in our RPC API:
+\begin{Def}[TreadMarks -- Whole Component Summary]
+
+    We need the following components in our RPC API:
+
+    \begin{itemize}
+        \item \textbf{Versioning Control}: Every write to a page creates a new version with a trailing diff.
+        \item \textbf{Causal Consistency}: Versioning history for each machine is stored in a vector clock.
+        \item \textbf{Locking}: Every page is locked before modification, with a lazy-release system to bypass notifying the entire cluster.
+
+    \end{itemize}
+
+    \noindent
+    \underline{\textbf{Consistency Model:} Weak consistency -- Lazy-release + Causal Consistency.}
+\end{Def}
+
+\noindent
+\textbf{We degraded our consistency} model from strong to weak consistency to save on performance. It is completely 
+possible to read stale data in this system; though, it is guaranteed that the data is consistent with the causal relationship of the data.
