@@ -90,7 +90,7 @@ Now to deal with failures:
         \item \textbf{Reduce Phase}: If a worker fails to reduce, the coordinator will reassign the partition to another worker.
         \item \textbf{Coordinator Failure}: If the coordinator fails, the system will need to restart the entire MapReduce job. Failures are not recoverable, and are assumed to be rare.
     \end{itemize}
-
+\noindent
     If a worker is slow (\textbf{straggler}), the coordinator reassigns its task and reacts accordingly:
     \begin{itemize}
         \item \textbf{Map Phase}: The coordinator will only point to the first worker that finishes the map task for intermediate data.

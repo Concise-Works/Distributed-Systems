@@ -227,11 +227,13 @@ We now discuss two weak consistency models, Causal Consistency and Eventual Cons
 
 \begin{Def}[Causal Consistency]
     
-    Weaker form of Sequential Consistency. That the Global Total Order of operations adhere logically to their causal dependencies.
+    \underline{\textbf{Weaker form of Sequential Consistency.} }That the Global Total Order of operations adhere logically to their causal dependencies.
     In particular: 
     \begin{itemize}
         \item If $A$ causes $B$, then $A \rightarrow B$ should be in the Global Total Order.
     \end{itemize}
+    \noindent
+    I.e., Causal Consistency is just Sequential Consistency, differing slightly in that Clients in Causal Consistency may observe different Global Total Orders.
 \end{Def}
 
 \noindent
@@ -285,7 +287,7 @@ Consider the following example and determine whether it is causally consistent:
     \centering
     \includegraphics[width=.9\textwidth]{Sections/consist/seq3.png}
     \caption{This 
-    System is causally consistent.}
+    A distributed system with client C1, C2, C3, and C4 interactions. This is not causally consistent, as $Wx1\to Wy1$, but $Ry1\to Rx0$ does not adhere to this relationship.}
 \end{figure}
 
 \begin{Def}[Eventual Consistency]
@@ -321,12 +323,42 @@ Causal Consistency implies two properties:
     \caption{This system is not FIFO nor Causally Consistent. Writes \textbf{must be read in monotonic order}. Hence, Rx3 must come before Rx4.}
 \end{figure}
 
+\vspace{-1em}
 \begin{figure}[h]
     \centering
     \includegraphics[width=.9\textwidth]{Sections/consist/ryw.png}
     \caption{This system is not RYW nor Causally Consistent. As the next read should be Rx4 alone. 
     The order, Rx0 $\rightarrow$ Wx4 $\rightarrow$ Rx4, satisfies RYW and is Causally Consistent.}
 \end{figure}
+
+\noindent
+Tell whether the following is linearizeable, sequential, causal, and or read your writes.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=.9\textwidth]{Sections/consist/test.png}
+    \caption{This system is linearizable, sequential, causal, and RYW.}
+\end{figure}
+
+\newpage 
+
+\noindent
+Recall that linearizability deals with real-time ordering of locks.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=.9\textwidth]{Sections/consist/test_2.png}
+    \caption{Here, locks are claimed in non conflicting order, which follows a real-time order.}
+\end{figure}
+
+\noindent
+To emphasize:
+\begin{theo}[consistency Model Implications]
+
+    The following implications hold among consistency models:
+
+    \begin{center}
+        linearizability $\rightarrow$ sequential $\rightarrow$ causal $\rightarrow$ read-your-writes $\rightarrow$ FIFO $\rightarrow$ eventual
+    \end{center}
+\end{theo}
 
 
     
