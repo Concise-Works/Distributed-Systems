@@ -59,19 +59,18 @@ It's 2007 and Amazon's global e-commerce platform must remain ``always-on'' desp
       
         \noindent
         \textbf{Gossip Frequency \& Peer Selection:}  
-        Every node, once per second, picks a peer uniformly at random and exchanges its local membership-change log. A vector clock represents the change log, where each cell is a (node, version) tuple.
-        This random peer exchange ensures that knowledge of joins, leaves, and failures propagates exponentially fast without a central coordinator.\\
+        Every second, each node picks a random peer and exchanges its local membership-change log (join/leave/failure records). This gossip ensures that all nodes eventually learn who is up or down without any central service.\\
       
         \noindent
         \textbf{Failure Detection \& Sloppy Quorum:}  
         During a write, if a coordinator cannot reach a preferred replica (due to a failure or partition), it writes to the next healthy node in the preference list. That node stores the update alongside a \textbf{``hint''} tagging the intended replica.
         
-        In particular, each node maintains hints stored in a separate log \underline{unbeknownst to the client}. The original paper makes no mention of any further constraints. This is called a \textbf{sloppy quorum}: it allows writes to proceed even if some replicas are unreachable.\\
+        In particular, each node stores hints in a separate local database \underline{unbeknownst to the client}. This is called a \textbf{sloppy quorum}: it allows writes and reads to proceed even if some replicas are unreachable, as long as $W$ and $R$ are satisfied.\\
         
       
         \noindent
         \textbf{Hinted Handoff:}  
-        When the failed node rejoins, any node holding a hint for it will detect its revived liveness via gossip and then forward (“handoff”) the stored updates---restoring the full set of $N$ replicas \textbf{without} blocking client operations.
+        When the failed node rejoins, any node holding a hint for it will detect its liveness via gossip and then forward the update it missed in a ``handoff''---restoring the full set of $N$ replicas \textbf{without} blocking client operations.
       \end{Def}
 
     \newpage 
@@ -82,12 +81,24 @@ It's 2007 and Amazon's global e-commerce platform must remain ``always-on'' desp
         \centering
         \includegraphics[width=\textwidth]{Sections/dyn/gossip_2.png}
         \caption{Gossip protocol and hinted handoff. 1) A put operation is sent to $G$, from which is then propagated. Though, $A$ and $B$ appear to be down, $G$ resolves this by giving hints to $C$ and $D$. 2) Nodes $C,D$ and $E$ \texttt{ACK}, allowing $G$ to return \texttt{OK}. 3) During the gossip protocol $A$ comes back online; $C$ notices this and sends the hint to $A$ (hinted-handoff). 4) Later in the 
-        gossip protocol, $B$ comes back online; $D$ notices and hands off the hint to $B$. \textbf{Note}: The original paper doesn't specify whether a replica may only hold one hint or multiple hints. In this 
-        figure we assume one hint per replica.}
+        gossip protocol, $B$ comes back online; $D$ notices and hands off the hint to $B$. \textbf{Note}: The paper \underline{does not} follow the one-hint-per-replica assumption made in this figure. Also, $G$ \textbf{should actually} send the write in parallel to $H\to A\to B\to\dots$ (its first three successors), but for visual-clarity we began with $A$.}
         \label{fig:gossip}
     \end{figure}
 
+    \vspace{-1em}
+    \begin{Note}
+        \textbf{Note}:
+        The Dynamo paper doesn't bound hint capacity. Here we assume at most one hint per missing replica, which in the worst case could lose writes if that holder also fails. 
+        We might instead store hints on the next $N$ healthy nodes, or allow multiple distinct hints per replica to improve safety.
+        
+        The paper does say, ``replicas will keep [hints] in a 
+        separate local database that is scanned periodically.'' The use of the word \textbf{Database} suggests hints may be propagated generously.
+    \end{Note}
+    \newpage 
 
+    \noindent
+    In response to our previous Figure (\ref{fig:gossip}) assumptions, we can make the following observations:
+   
     
 
 %     \item \textbf{Sloppy Quorum \& Hinted Handoff:}  
