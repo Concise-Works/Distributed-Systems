@@ -2,7 +2,8 @@
 
 \section{Dynamo: Amazon's Highly Available Key-Value Store}
 
-It's 2007 and Amazon's global e-commerce platform must remain ``always-on'' despite continual component failures, outages cost revenue and customer trust. To achieve this, Dynamo sacrifices strict consistency for low-latency availability:
+It's 2007 and Amazon's global e-commerce platform must remain ``always-on'' despite continual component failures, outages cost 
+revenue and customer trust. To achieve this, Dynamo sacrifices strict consistency for low-latency availability (\href{https://www.amazon.science/publications/dynamo-amazons-highly-available-key-value-store#:~:text=This%20paper%20presents%20the%20design%20and%20implementation%20of,availability%2C%20Dynamo%20sacrifices%20consistency%20under%20certain%20failure%20scenarios.}{Original Paper}):
 
 \begin{Def}[Design Goals of Dynamo]
     \textbf{Dynamo} is a decentralized, highly available key-value store designed to:
@@ -36,7 +37,7 @@ It's 2007 and Amazon's global e-commerce platform must remain ``always-on'' desp
         \end{itemize}
       \end{Def}
       
-    
+      
     \newpage 
     \noindent
     We'll call the below a turtle-back diagram; it illustrates the quorum system in a basic configuration:
@@ -167,7 +168,7 @@ In an eventually-consistent store, vector clocks track the history of individual
       \[
         H_i = \text{hash}(k_i \Vert v_i)\,
       \]
-      .Then each \textbf{internal node} hashes the concatenation of its two children,
+      Then each \textbf{internal node} hashes the concatenation of its two children,
       where ($\Vert$) denotes concatenation, and $H$ is a cryptographic hash function (e.g., SHA-1, MD5). The root hash summarizes the entire tree.
       \item \textbf{Root Comparison:} Replicas exchange only their root hashes.  A match means the entire key-value set is identical—no further work.
       \item \textbf{Recursive Descent:} On a root mismatch, only the child hashes of the differing subtrees are exchanged, descending the tree until the exact leaf hashes (and thus specific keys) that differ are isolated.
@@ -184,3 +185,5 @@ In an eventually-consistent store, vector clocks track the history of individual
             which causes the mismatch. They both discover a discrepancy in their $B$ key ranges.}
             \label{fig:merkle}
 \end{figure}
+
+
