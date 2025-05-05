@@ -11,6 +11,7 @@ This section discusses saving state. This is useful for fault-tolerance and syst
 
 \begin{Def}[Consistent vs. Inconsistent Snapshots]
 
+    \label{def:consistency}
     To evaluate a snapshot's consistency, we compare events in the system \textbf{pre-snapshot} (events before the snapshot) 
     and \textbf{post-snapshot} (events after the snapshot). The snapshot itself is instantaneous, like a photograph. 
     Given an event ordering $r$:
