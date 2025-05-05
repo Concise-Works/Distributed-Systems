@@ -299,7 +299,16 @@ Below is a diagram of the 3PC process:
 \begin{figure}[h]
     \centering
     \includegraphics[width=\textwidth]{Sections/trans/3PC.png}
-    \caption{Three-Phase Commit (3PC) protocol message flow. The transaction progresses through three phases: \textbf{CanCommit}, where participants vote; \textbf{PreCommit}, where participants acknowledge readiness to commit; and \textbf{DoCommit}, where the final decision is executed. In the event of coordinator failure, participants may invoke \textbf{Self-Resolve} after a timeout, based on whether they received a \texttt{PreCommit} message, ensuring non-blocking recovery.
+    \caption{Three-Phase Commit (3PC) protocol message flow. The transaction progresses through three phases: \textbf{CanCommit}, where participants vote; \textbf{PreCommit}, where participants acknowledge readiness to commit; and \textbf{DoCommit}, where the final decision is executed. The TC may decide to abort if it recieved a \texttt{NO} vote, or failed to \texttt{ACK} during \texttt{PreCommit}. In the event of coordinator failure, participants may invoke \textbf{Self-Resolve} after a timeout, based on whether they received a \texttt{PreCommit} message, ensuring non-blocking recovery.
     \textbf{Note:} The Databases do not communicate with the client after resolution, though this could depend on the implementation.}
     \label{fig:3pc}
 \end{figure}
+
+\noindent
+We briefly go over OCC's opposition:
+\begin{Def}[Pessimistic Concurrency Control (PCC)]
+
+    \textbf{Pessimistic Concurrency Control} assumes conflicts are likely and prevents them by acquiring locks before any data access.
+    It then preforms actions directly on shared data, ensuring \textbf{serializability and isolation}. The locks are released after the transaction is completed.
+  \end{Def}
+  

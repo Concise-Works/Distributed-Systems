@@ -19,10 +19,6 @@ revenue and customer trust. To achieve this, Dynamo sacrifices strict consistenc
     \textbf{Consistency Model:} Weak Consistency, favoring availability over strict consistency.
   \end{Def}
   
-
-  \noindent
-  Next we discuss how it achieves this decentralized, highly available key-value store:
-
   \begin{Def}[Quorum System -- Coordinating (Part 1)]
 
     A user's keys is hashed to a point on a 128-bit ring and mapped to an ordered list of $N$ nodes (the \textbf{preference list}). The first clockwise node, $N_i$, becomes the \textbf{coordinator}:
