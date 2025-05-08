@@ -107,7 +107,7 @@ A particular DSM system called \textbf{TreadMarks} solves this problem:
 
     \noindent
     This allows for all $M_i$ to start with \textbf{RO} (read-only) access on all pages. When $M_j$ wishes to 
-    modify a page, $M_j$ notifies all other $M_i$ to invalidate their copies of the page. $M_j$ then gets \textbf{RW} (read-write) access to the page.
+    modify a page, $M_j$ notifies all other $M_i$ to invalidate their copies of the page. $M_j$ then gets \textbf{RW} (read-write) access to the page (at most one writeable copy).
 
 
     Each write creates a new $V_i$ version of the page ($i$, increases monotonically). Where $V_i$ contains the latest changes, and $V_{i-1}$ a snapshot before the changes.
@@ -116,7 +116,7 @@ A particular DSM system called \textbf{TreadMarks} solves this problem:
     Both $M_j$ and $M_i$ revert to RO access.\\
 
     \noindent
-    \underline{\textbf{Consistency Model:} Strong consistency, and linearizability} (at most one writeable copy).
+    \underline{\textbf{Consistency Model:} Weak consistency} as per lazy-release style of diff sharing.
 \end{Def}
 
 \vspace{-1em}
