@@ -2,6 +2,7 @@
 
 \section{Transactions and Concurrency Control}
 \subsection{Optimistic Concurrency Control (OCC)}
+\label{sec:occ}
 
 \noindent
 Say the backbone of our stock trading application is a 
@@ -24,7 +25,7 @@ more important that if any trade fails, the system can recover to a consistent s
     A transaction must satisfy the \textbf{ACID} properties:
     \begin{itemize}
         \item \textbf{Atomicity}: A transaction is either fully completed or dropped entirely.
-        \item \textbf{Consistency}: A transaction must leave the database in a consistent state.
+        \item \textbf{Consistency}:  A transaction takes the database from one valid state to another.
         \item \textbf{Isolation}: Transactions must be isolated from each other.
         \item \textbf{Durability}: Once a transaction is committed, it remains so even after system failure.
     \end{itemize}
@@ -155,7 +156,7 @@ We consider the following model to help us preform transactions:
     \includegraphics[width=\textwidth]{Sections/trans/central_4.png}
 
     \noindent
-    \underline{\textbf{Timestamps (@\#) are only serve as IDs.}} Here TC$_2$ OKs the order (T3,T2). TC$_1$ sees this,
+    \underline{\textbf{Timestamps (@\#) only serve as IDs.}} Here TC$_2$ OKs the order (T3,T2). TC$_1$ sees this,
     enforces the order, but is not able to serialize (T1,T3,T2). Hence, it aborts (NO).
     \end{Example}
 

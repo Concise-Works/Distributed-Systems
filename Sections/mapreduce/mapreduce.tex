@@ -1,5 +1,6 @@
 \newpage
 \section{MapReduce}
+\label{sec:mapreduce}
 
 \noindent
 It's 2004 and Google is looking for a way to process large amounts of web-crawled data efficiently in parallel.
@@ -69,13 +70,14 @@ Now to bring this into a distributed system:
         \item \textbf{Assign Maps}: The coordinator distributes the $M$ chunks to $N$ worker nodes (may receive multiple chunks).
         \item \textbf{Map Phase}: Each worker processes its chunk and partitions the output into $R$ sections on disk. This is 
         achieved by uniformly hashing the intermediate keys into $R$ buckets.
-        \item \textbf{Shuffle Phase}: The coordinator collects the $R$ partitions from all workers and redistributes them back to $N$ workers.
+        \item \textbf{Shuffle Phase}: The coordinator collects the $R$ partitions from all workers and redistributes them back to $N$ workers, via 
+        sorting the intermediate keys, or by hashing (more efficiently).
         \item \textbf{Reduce Phase}: Each worker processes its partition and writes the final output to disk.
     \end{itemize}
 
     \noindent
-    Additionally, $W$ and $R$ jobs should outnumber $N$ workers to keep them busy\\
-    (i.e., $W \gg N$ and $R \gg N$).
+    Additionally, Given $W$ workers, $M$ mapping tasks, and $R$ reducing tasks, $W \gg N$ and $R \gg N$. I.e.,
+    Mapping and Reducing tasks should outnumber the workers to keep them busy.
 \end{Def}
 
 \newpage 
