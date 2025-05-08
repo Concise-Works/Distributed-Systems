@@ -131,16 +131,16 @@ We consider the following model to help us preform transactions:
     \newpage
 
     \noindent
-    Though we run into an issue when there are multiple TCs.
+    Though we run into an issue with server specific data, the TC must resolve execution order.
     \begin{Example}[Distributed OCC]
 
-        Consider two TCs responsible for different parts of our system data.
+        Consider two servers responsible for different parts of our system data.
 
         \noindent
         \includegraphics[width=\textwidth]{Sections/trans/central_3.png}
 
         \noindent
-        The problem occurs as TC$_1$ and TC$_2$ pick \textbf{different serial orders} for the transactions.
+        Problem: The TC picks \textbf{different serial orders} for each server during transactions.
     \end{Example}
     
 \begin{theo}[Timestamping Distributed OCC]
@@ -156,8 +156,8 @@ We consider the following model to help us preform transactions:
     \includegraphics[width=\textwidth]{Sections/trans/central_4.png}
 
     \noindent
-    \underline{\textbf{Timestamps (@\#) only serve as IDs.}} Here TC$_2$ OKs the order (T3,T2). TC$_1$ sees this,
-    enforces the order, but is not able to serialize (T1,T3,T2). Hence, it aborts (NO).
+    \underline{\textbf{Timestamps (@\#) only serve as IDs.}} Here S$_2$ OKs the order (T3,T2). The TC sees this,
+    and enforces the order for S$_1$, but it isn't able to serialize. Hence, the TC aborts (NO).
     \end{Example}
 
     \newpage 
